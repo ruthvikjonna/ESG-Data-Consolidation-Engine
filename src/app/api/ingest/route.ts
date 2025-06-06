@@ -62,29 +62,22 @@ export async function POST(req: Request) {
     if (userError || !user) throw new Error('User not authenticated');
     const userId = user.id;
 
-    const { fields, filePath } = await parseFormData(req);
-    const results: any[] = [];
+    // Parse JSON body instead of form data
+    const body = await req.json();
 
-    await new Promise<void>((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (row) => {
-          results.push({
-            user_id: userId,
-            source_system: fields.source || 'Manual Upload',
-            pull_time: new Date().toISOString(),
-            raw_data: row,
-          });
-        })
-        .on('end', resolve)
-        .on('error', reject);
-    });
+    const result = {
+      user_id: userId,
+      source_system: body.source_system || 'Manual Upload',
+      pull_time: new Date().toISOString(),
+      ...body,
+    };
 
-    const { error } = await supabase.from('esg_data').insert(results);
+    const { error } = await supabase.from('esg_data').insert([result]);
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ message: 'Data ingested successfully', rows: results.length });
+    return NextResponse.json({ message: 'Data ingested successfully' });
   } catch (err: any) {
+    console.error('API Ingest Error:', err);
     return NextResponse.json({ error: err.message || 'Upload failed' }, { status: 500 });
   }
 }
