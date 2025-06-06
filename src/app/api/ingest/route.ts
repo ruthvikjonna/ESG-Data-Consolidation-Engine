@@ -1,27 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import formidable, { Fields, Files, File } from 'formidable';
 import fs from 'fs';
 import csv from 'csv-parser';
+import { Readable } from 'stream';
 
 export const config = {
   api: {
-    bodyParser: false, // required for formidable
+    bodyParser: false,
   },
 };
 
-// initialize supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
-);
-
 // parse incoming form-data (file + fields)
-async function parseFormData(req: any): Promise<{ fields: Fields; filePath: string }> {
-  const form = formidable({ uploadDir: '/tmp', keepExtensions: true });
+async function parseFormData(req: Request): Promise<{ fields: Fields; filePath: string }> {
+  const form = formidable({ uploadDir: './tmp', keepExtensions: true });
+
+  // Convert web stream to Node.js stream and attach required headers
+  const headers: any = {};
+  req.headers.forEach((value, key) => {
+    headers[key.toLowerCase()] = value;
+  });
+
+  const nodeReq = Object.assign(Readable.fromWeb(req.body as any), {
+    headers,
+    method: req.method,
+    url: '',
+  });
 
   return new Promise((resolve, reject) => {
-    form.parse(req, (err, fields: Fields, files: Files) => {
+    form.parse(nodeReq as any, (err, fields: Fields, files: Files) => {
       if (err) return reject(err);
 
       const file = Array.isArray(files.file) ? files.file[0] : files.file;
@@ -33,8 +40,13 @@ async function parseFormData(req: any): Promise<{ fields: Fields; filePath: stri
 }
 
 // POST /api/ingest
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!
+    );
+
     const { fields, filePath } = await parseFormData(req);
     const results: any[] = [];
 
@@ -43,10 +55,10 @@ export async function POST(req: NextRequest) {
         .pipe(csv())
         .on('data', (row) => {
           results.push({
-            user_id: fields.user_id || 'test-user',
+            user_id: Array.isArray(fields.user_id) ? fields.user_id[0] : fields.user_id || 'test-user',
             source_system: fields.source || 'Manual Upload',
-            ingested_at: new Date().toISOString(),
-            data: row,
+            pull_time: new Date().toISOString(), // using existing timestamp column
+            raw_data: row,
           });
         })
         .on('end', resolve)
