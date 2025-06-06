@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     // Insert into Supabase
     const { error } = await supabase
-      .from('esg_data')
+      .from('sap_raw_data')
       .insert(results);
 
     if (error) {
