@@ -19,3 +19,30 @@ Modern ESG reporting is fragmented, manual, and difficult to audit. This project
 - Audit-friendly metadata (who entered what, when, and from where)
 - Integration-ready (Google Sheets, Zapier, SAP, etc.)
 - Dashboard for tracking data quality and completeness
+
+## Supabase Auth + RLS Setup
+
+### 1. Add user_id column to esg_data
+```sql
+alter table esg_data add column if not exists user_id uuid references auth.users(id);
+```
+
+### 2. Enable Row Level Security (RLS)
+```sql
+alter table esg_data enable row level security;
+```
+
+### 3. Add RLS Policy (user isolation)
+```sql
+create policy "Users can access their own ESG data"
+on esg_data
+for all
+using (user_id = auth.uid());
+```
+
+### 4. Enable Auth Providers
+- In the Supabase dashboard, go to Authentication > Providers.
+- Enable Email/Password and any OAuth providers you want (Google, GitHub, etc.).
+
+### 5. Testing
+- Sign up as a user, submit data, and verify only your data is visible.
