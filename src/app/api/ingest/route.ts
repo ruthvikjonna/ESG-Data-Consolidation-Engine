@@ -4,6 +4,7 @@ import formidable, { Fields, Files, File } from 'formidable';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+import { supabase } from '@/lib/supabase';
 
 export const config = {
   api: {
@@ -44,8 +45,22 @@ export async function POST(req: Request) {
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get('authorization') || '',
+          },
+        },
+      }
     );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('User not authenticated');
+    const userId = user.id;
 
     const { fields, filePath } = await parseFormData(req);
     const results: any[] = [];
@@ -55,9 +70,9 @@ export async function POST(req: Request) {
         .pipe(csv())
         .on('data', (row) => {
           results.push({
-            user_id: Array.isArray(fields.user_id) ? fields.user_id[0] : fields.user_id || 'test-user',
+            user_id: userId,
             source_system: fields.source || 'Manual Upload',
-            pull_time: new Date().toISOString(), // using existing timestamp column
+            pull_time: new Date().toISOString(),
             raw_data: row,
           });
         })
