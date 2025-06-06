@@ -12,6 +12,8 @@ export default function Home() {
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [sapLoading, setSapLoading] = useState(false)
+  const [sapResult, setSapResult] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -46,6 +48,24 @@ export default function Home() {
     setSuccess(true)
   }
 
+  const handleSapIngest = async () => {
+    setSapLoading(true)
+    setSapResult(null)
+    try {
+      const res = await fetch('/api/ingest/sap-mock', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setSapResult(`SAP data ingested successfully! Rows: ${data.rows}`)
+      } else {
+        setSapResult(`Error: ${data.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      setSapResult(`Error: ${err.message}`)
+    } finally {
+      setSapLoading(false)
+    }
+  }
+
   return (
     <main className="max-w-md mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Submit ESG Data</h1>
@@ -71,6 +91,20 @@ export default function Home() {
         </button>
         {success && <p className="text-green-700">Data submitted successfully!</p>}
       </form>
+      <div className="mt-8">
+        <button
+          onClick={handleSapIngest}
+          disabled={sapLoading}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+        >
+          {sapLoading ? 'Connecting SAP...' : 'Connect SAP (Demo)'}
+        </button>
+        {sapResult && (
+          <p className={sapResult.startsWith('Error') ? 'text-red-600 mt-2' : 'text-green-700 mt-2'}>
+            {sapResult}
+          </p>
+        )}
+      </div>
     </main>
   )
 }
