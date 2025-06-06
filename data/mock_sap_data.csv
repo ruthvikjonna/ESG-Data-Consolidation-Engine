@@ -1,0 +1,4 @@
+employee_id,employee_name,department,air_travel_miles,reporting_period
+1001,Jane Doe,Sales,1200,Q1 2024
+1002,John Smith,Engineering,800,Q1 2024
+1003,Alice Lee,Finance,0,Q1 2024 
