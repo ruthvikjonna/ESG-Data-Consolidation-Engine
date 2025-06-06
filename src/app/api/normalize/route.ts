@@ -4,13 +4,39 @@ import { NextRequest, NextResponse } from 'next/server';
 function normalizeRecord(record: any) {
   const normalized: any = {
     ...record,
-    scope_3_category_6_miles: record.air_travel_miles || null,
+    // Field mappings
+    scope_3_category_6_miles: record.air_travel_miles ?? null,
+    scope_3_category_6_km: record.business_travel_km ?? (record.air_travel_miles ? record.air_travel_miles * 1.60934 : null),
+    scope_1_natural_gas_therms: record.natural_gas_therms ?? null,
+    energy_mwh: record.energy_kwh ? record.energy_kwh / 1000 : null,
   };
+
   const flags: string[] = [];
-  if (!record.air_travel_miles) {
-    flags.push('Missing air_travel_miles');
+
+  // Flag missing required fields
+  if (normalized.scope_3_category_6_miles == null && normalized.scope_3_category_6_km == null) {
+    flags.push('Missing business travel distance (miles or km)');
   }
-  // Add more normalization and flagging logic as needed
+  if (record.natural_gas_therms == null) {
+    flags.push('Missing natural gas usage');
+  }
+  // Flag negative or unreasonable values
+  if (normalized.scope_3_category_6_miles != null && normalized.scope_3_category_6_miles < 0) {
+    flags.push('Negative air travel miles');
+  }
+  if (normalized.scope_3_category_6_km != null && normalized.scope_3_category_6_km < 0) {
+    flags.push('Negative business travel km');
+  }
+  if (normalized.scope_1_natural_gas_therms != null && normalized.scope_1_natural_gas_therms < 0) {
+    flags.push('Negative natural gas usage');
+  }
+  if (record.energy_kwh != null && record.energy_kwh < 0) {
+    flags.push('Negative energy_kwh');
+  }
+  if (normalized.energy_mwh != null && normalized.energy_mwh < 0) {
+    flags.push('Negative energy_mwh');
+  }
+
   return { normalized, flags };
 }
 
