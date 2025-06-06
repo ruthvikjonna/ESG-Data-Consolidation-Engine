@@ -11,9 +11,9 @@ export async function POST(req: NextRequest) {
     source_system,
     pull_time,
     user_id,
+    raw_data = null,
   } = body
 
-  // Basic validation
   if (!company_name || !metric_type || !value || !source_system || !user_id) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       source_system,
       pull_time: pull_time || new Date().toISOString(),
       user_id,
+      raw_data,
     },
   ])
 
