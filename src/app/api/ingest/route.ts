@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const nodeFetch: typeof fetch = (input, init) => {
+  if (init) {
+    (init as any).duplex = 'half'
+  }
+  return fetch(input, init)
+}
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    global: { fetch: nodeFetch },
+  }
+)
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
