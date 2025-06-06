@@ -22,6 +22,9 @@ export default function Home() {
   const [normalizedData, setNormalizedData] = useState<any[]>([])
   const [normalizedLoading, setNormalizedLoading] = useState(false)
   const [normalizedError, setNormalizedError] = useState<string | null>(null)
+  const [workdayData, setWorkdayData] = useState<any[]>([])
+  const [workdayLoading, setWorkdayLoading] = useState(false)
+  const [workdayError, setWorkdayError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -124,8 +127,27 @@ export default function Home() {
     }
   }
 
+  const fetchWorkdayData = async () => {
+    setWorkdayLoading(true)
+    setWorkdayError(null)
+    try {
+      const res = await fetch('/api/data/workday')
+      const json = await res.json()
+      if (res.ok) {
+        setWorkdayData(json.data)
+      } else {
+        setWorkdayError(json.error || 'Failed to fetch Workday data')
+      }
+    } catch (err: any) {
+      setWorkdayError(err.message)
+    } finally {
+      setWorkdayLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchNormalizedData()
+    fetchWorkdayData()
   }, [])
 
   if (!user) {
@@ -190,31 +212,41 @@ export default function Home() {
         )}
       </div>
       <div className="mt-12">
-        <h2 className="text-xl font-bold mb-2">Normalized SAP Data</h2>
-        <button onClick={fetchNormalizedData} className="mb-2 px-3 py-1 bg-gray-200 rounded">Refresh</button>
-        {normalizedLoading && <p>Loading...</p>}
-        {normalizedError && <p className="text-red-600">{normalizedError}</p>}
+        <h2 className="text-xl font-bold mb-2">Normalized Workday Employee Data</h2>
+        <button onClick={fetchWorkdayData} className="mb-2 px-3 py-1 bg-gray-200 rounded">Refresh</button>
+        {workdayLoading && <p>Loading...</p>}
+        {workdayError && <p className="text-red-600">{workdayError}</p>}
         <div className="overflow-x-auto">
           <table className="min-w-full border text-sm">
             <thead>
               <tr>
-                <th className="border px-2 py-1">Company</th>
-                <th className="border px-2 py-1">Metric</th>
-                <th className="border px-2 py-1">Value</th>
-                <th className="border px-2 py-1">Units</th>
-                <th className="border px-2 py-1">Source</th>
-                <th className="border px-2 py-1">At</th>
+                <th className="border px-2 py-1">Employee ID</th>
+                <th className="border px-2 py-1">First Name</th>
+                <th className="border px-2 py-1">Last Name</th>
+                <th className="border px-2 py-1">Email</th>
+                <th className="border px-2 py-1">Title</th>
+                <th className="border px-2 py-1">Salary</th>
+                <th className="border px-2 py-1">Currency</th>
+                <th className="border px-2 py-1">Frequency</th>
+                <th className="border px-2 py-1">Hire Date</th>
+                <th className="border px-2 py-1">Birth Date</th>
+                <th className="border px-2 py-1">Gender</th>
               </tr>
             </thead>
             <tbody>
-              {normalizedData.map((row, i) => (
+              {workdayData.map((row, i) => (
                 <tr key={row.id || i}>
-                  <td className="border px-2 py-1">{row.company_name}</td>
-                  <td className="border px-2 py-1">{row.metric_type}</td>
-                  <td className="border px-2 py-1">{row.value}</td>
-                  <td className="border px-2 py-1">{row.units}</td>
-                  <td className="border px-2 py-1">{row.source_system}</td>
-                  <td className="border px-2 py-1">{row.normalized_at?.slice(0, 19).replace('T', ' ')}</td>
+                  <td className="border px-2 py-1">{row.employee_id}</td>
+                  <td className="border px-2 py-1">{row.first_name}</td>
+                  <td className="border px-2 py-1">{row.last_name}</td>
+                  <td className="border px-2 py-1">{row.email}</td>
+                  <td className="border px-2 py-1">{row.title}</td>
+                  <td className="border px-2 py-1">{row.salary}</td>
+                  <td className="border px-2 py-1">{row.currency}</td>
+                  <td className="border px-2 py-1">{row.frequency}</td>
+                  <td className="border px-2 py-1">{row.hire_date}</td>
+                  <td className="border px-2 py-1">{row.birth_date}</td>
+                  <td className="border px-2 py-1">{row.gender}</td>
                 </tr>
               ))}
             </tbody>
