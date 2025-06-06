@@ -46,3 +46,41 @@ using (user_id = auth.uid());
 
 ### 5. Testing
 - Sign up as a user, submit data, and verify only your data is visible.
+
+## Data Model: Source-Specific and Normalized Tables
+
+### 1. SAP Raw Data Table
+```sql
+create table if not exists sap_raw_data (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id),
+  raw_data jsonb not null,
+  source_system text default 'SAP',
+  pull_time timestamptz default now(),
+  created_at timestamptz default now()
+);
+```
+
+### 2. Normalized ESG Data Table
+```sql
+create table if not exists normalized_esg_data (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id),
+  source_system text,
+  company_name text,
+  metric_type text,
+  value numeric,
+  units text,
+  original_data jsonb,
+  normalized_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+```
+
+### Normalization Pipeline Flow
+- Ingest raw SAP data into sap_raw_data (raw_data column)
+- Run normalization job (TypeScript or SQL):
+  - Reads from sap_raw_data.raw_data
+  - Maps/cleans/transforms fields
+  - Writes to normalized_esg_data
+- Expose normalized_esg_data via API for BI/reporting
