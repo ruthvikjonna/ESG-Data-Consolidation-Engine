@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
         .on('data', (row) => {
           // Normalize row
           results.push({
-            user_id: 'sap-mock-user',
+            user_id: '9cd82ced-076a-4d17-a027-7d25878bbe0b',
             source_system: 'SAP',
             raw_data: {
               ...row,
               scope_3_category_6_miles: row.air_travel_miles,
             },
-            ingested_at: new Date().toISOString(),
+            pull_time: new Date().toISOString(),
           });
         })
         .on('end', resolve)
