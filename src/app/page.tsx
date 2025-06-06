@@ -19,6 +19,9 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
+  const [normalizedData, setNormalizedData] = useState<any[]>([])
+  const [normalizedLoading, setNormalizedLoading] = useState(false)
+  const [normalizedError, setNormalizedError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -103,6 +106,28 @@ export default function Home() {
     }
   }
 
+  const fetchNormalizedData = async () => {
+    setNormalizedLoading(true)
+    setNormalizedError(null)
+    try {
+      const res = await fetch('/api/data/sap')
+      const json = await res.json()
+      if (res.ok) {
+        setNormalizedData(json.data)
+      } else {
+        setNormalizedError(json.error || 'Failed to fetch normalized data')
+      }
+    } catch (err: any) {
+      setNormalizedError(err.message)
+    } finally {
+      setNormalizedLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchNormalizedData()
+  }, [])
+
   if (!user) {
     return (
       <main className="max-w-md mx-auto p-6">
@@ -163,6 +188,38 @@ export default function Home() {
             {sapResult}
           </p>
         )}
+      </div>
+      <div className="mt-12">
+        <h2 className="text-xl font-bold mb-2">Normalized SAP Data</h2>
+        <button onClick={fetchNormalizedData} className="mb-2 px-3 py-1 bg-gray-200 rounded">Refresh</button>
+        {normalizedLoading && <p>Loading...</p>}
+        {normalizedError && <p className="text-red-600">{normalizedError}</p>}
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm">
+            <thead>
+              <tr>
+                <th className="border px-2 py-1">Company</th>
+                <th className="border px-2 py-1">Metric</th>
+                <th className="border px-2 py-1">Value</th>
+                <th className="border px-2 py-1">Units</th>
+                <th className="border px-2 py-1">Source</th>
+                <th className="border px-2 py-1">At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {normalizedData.map((row, i) => (
+                <tr key={row.id || i}>
+                  <td className="border px-2 py-1">{row.company_name}</td>
+                  <td className="border px-2 py-1">{row.metric_type}</td>
+                  <td className="border px-2 py-1">{row.value}</td>
+                  <td className="border px-2 py-1">{row.units}</td>
+                  <td className="border px-2 py-1">{row.source_system}</td>
+                  <td className="border px-2 py-1">{row.normalized_at?.slice(0, 19).replace('T', ' ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   )
