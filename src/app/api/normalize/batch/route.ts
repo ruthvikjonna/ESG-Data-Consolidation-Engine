@@ -5,10 +5,10 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 function normalizeRecord(record: any) {
   // Example normalization: map SAP fields to normalized ESG fields
   return {
-    company_name: record.company_name || null,
-    metric_type: record.metric_type || null,
-    value: record.value ? Number(record.value) : null,
-    units: record.units || null,
+    company_name: record.company || record.company_name || null,
+    metric_type: record.metric || record.metric_type || null,
+    value: record.amount || record.value ? Number(record.amount || record.value) : null,
+    units: record.unit || record.units || null,
     source_system: 'SAP',
     original_data: record,
   };
