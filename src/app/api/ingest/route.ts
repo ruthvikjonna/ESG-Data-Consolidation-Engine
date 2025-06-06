@@ -1,54 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import formidable, { Fields, Files, File } from 'formidable';
+import fs from 'fs';
+import csv from 'csv-parser';
 
-const nodeFetch: typeof fetch = (input, init) => {
-  if (init) {
-    (init as any).duplex = 'half'
-  }
-  return fetch(input, init)
+export const config = {
+  api: {
+    bodyParser: false, // required for formidable
+  },
+};
+
+// initialize supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_KEY!
+);
+
+// parse incoming form-data (file + fields)
+async function parseFormData(req: any): Promise<{ fields: Fields; filePath: string }> {
+  const form = formidable({ uploadDir: '/tmp', keepExtensions: true });
+
+  return new Promise((resolve, reject) => {
+    form.parse(req, (err, fields: Fields, files: Files) => {
+      if (err) return reject(err);
+
+      const file = Array.isArray(files.file) ? files.file[0] : files.file;
+      if (!file || !(file as File).filepath) return reject(new Error('CSV file missing'));
+
+      resolve({ fields, filePath: (file as File).filepath });
+    });
+  });
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    global: { fetch: nodeFetch },
-  }
-)
-
+// POST /api/ingest
 export async function POST(req: NextRequest) {
-  const body = await req.json()
+  try {
+    const { fields, filePath } = await parseFormData(req);
+    const results: any[] = [];
 
-  const {
-    company_name,
-    metric_type,
-    value,
-    source_system,
-    pull_time,
-    user_id,
-    raw_data = null,
-  } = body
+    await new Promise<void>((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (row) => {
+          results.push({
+            user_id: fields.user_id || 'test-user',
+            source_system: fields.source || 'Manual Upload',
+            ingested_at: new Date().toISOString(),
+            data: row,
+          });
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
 
-  if (!company_name || !metric_type || !value || !source_system || !user_id) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const { error } = await supabase.from('esg_data').insert(results);
+    if (error) throw new Error(error.message);
+
+    return NextResponse.json({ message: 'Data ingested successfully', rows: results.length });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Upload failed' }, { status: 500 });
   }
-
-  const { error } = await supabase.from('esg_data').insert([
-    {
-      company_name,
-      metric_type,
-      value,
-      source_system,
-      pull_time: pull_time || new Date().toISOString(),
-      user_id,
-      raw_data,
-    },
-  ])
-
-  if (error) {
-    console.error('Insert error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ success: true }, { status: 200 })
 }
