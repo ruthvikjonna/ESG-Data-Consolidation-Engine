@@ -37,9 +37,9 @@ export async function POST(req: NextRequest) {
       ...normalizeWorkdayRecord(row.raw_data),
     }));
 
-    // 3. Insert into normalized_employee_data
+    // 3. Insert into workday_normalized_data
     const { error: insertError } = await supabaseAdmin
-      .from('normalized_employee_data')
+      .from('workday_normalized_data')
       .insert(normalizedRows);
     if (insertError) throw new Error(insertError.message);
 
