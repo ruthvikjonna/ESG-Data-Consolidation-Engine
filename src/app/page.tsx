@@ -19,6 +19,8 @@ export default function Home() {
   const [workdayData, setWorkdayData] = useState<any[]>([])
   const [workdayLoading, setWorkdayLoading] = useState(false)
   const [workdayError, setWorkdayError] = useState<string | null>(null)
+  const [workdayIngestLoading, setWorkdayIngestLoading] = useState(false)
+  const [workdayIngestResult, setWorkdayIngestResult] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -68,6 +70,31 @@ export default function Home() {
       setSapResult(`Error: ${err.message}`)
     } finally {
       setSapLoading(false)
+    }
+  }
+
+  const handleWorkdayIngest = async () => {
+    setWorkdayIngestLoading(true)
+    setWorkdayIngestResult(null)
+    const session = (await supabase.auth.getSession()).data.session
+    const accessToken = session?.access_token
+    try {
+      const res = await fetch('/api/ingest/workday', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setWorkdayIngestResult(`Workday data ingested successfully! Rows: ${data.rows}`)
+      } else {
+        setWorkdayIngestResult(`Error: ${data.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      setWorkdayIngestResult(`Error: ${err.message}`)
+    } finally {
+      setWorkdayIngestLoading(false)
     }
   }
 
@@ -148,6 +175,18 @@ export default function Home() {
         {sapResult && (
           <p className={sapResult.startsWith('Error') ? 'text-red-600 mt-2' : 'text-green-700 mt-2'}>
             {sapResult}
+          </p>
+        )}
+        <button
+          onClick={handleWorkdayIngest}
+          disabled={workdayIngestLoading}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full mt-4"
+        >
+          {workdayIngestLoading ? 'Connecting Workday...' : 'Connect Workday (Demo)'}
+        </button>
+        {workdayIngestResult && (
+          <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-2' : 'text-green-700 mt-2'}>
+            {workdayIngestResult}
           </p>
         )}
       </div>
