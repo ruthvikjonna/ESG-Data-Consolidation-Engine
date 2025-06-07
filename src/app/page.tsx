@@ -4,12 +4,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function Home() {
-  const [form, setForm] = useState({
-    company_name: '',
-    metric_type: '',
-    value: '',
-    source_system: '',
-  })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [sapLoading, setSapLoading] = useState(false)
@@ -52,45 +46,13 @@ export default function Home() {
     await supabase.auth.signOut()
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setSuccess(false)
-    const session = (await supabase.auth.getSession()).data.session
-    const accessToken = session?.access_token
-    const { error } = await fetch('/api/ingest', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ ...form }),
-    }).then(res => res.json())
-    setLoading(false)
-    if (error) {
-      console.error('Submission Error:', error)
-      return
-    }
-    setForm({
-      company_name: '',
-      metric_type: '',
-      value: '',
-      source_system: '',
-    })
-    setSuccess(true)
-  }
-
   const handleSapIngest = async () => {
     setSapLoading(true)
     setSapResult(null)
     const session = (await supabase.auth.getSession()).data.session
     const accessToken = session?.access_token
     try {
-      const res = await fetch('/api/ingest/sap-mock', {
+      const res = await fetch('/api/ingest/sap', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -172,31 +134,9 @@ export default function Home() {
   return (
     <main className="max-w-md mx-auto p-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Submit ESG Data</h1>
+        <h1 className="text-2xl font-bold">ESG Data Dashboard</h1>
         <button onClick={handleSignOut} className="text-sm text-gray-600 underline">Sign Out</button>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {['company_name', 'metric_type', 'value', 'source_system'].map((field) => (
-          <input
-            key={field}
-            type="text"
-            name={field}
-            placeholder={field.replace('_', ' ')}
-            value={(form as any)[field]}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-            required
-          />
-        ))}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
-          {loading ? 'Submitting...' : 'Submit'}
-        </button>
-        {success && <p className="text-green-700">Data submitted successfully!</p>}
-      </form>
       <div className="mt-8">
         <button
           onClick={handleSapIngest}
