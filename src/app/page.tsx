@@ -161,77 +161,113 @@ export default function Home() {
   }
 
   return (
-    <main className="max-w-md mx-auto p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">ESG Data Dashboard</h1>
-        <button onClick={handleSignOut} className="text-sm text-gray-600 underline">Sign Out</button>
+    <main className="max-w-4xl mx-auto p-2">
+      <div className="flex flex-col items-center mb-2">
+        <h1 className="text-2xl font-bold text-center">ESG Data Dashboard</h1>
+        <button onClick={handleSignOut} className="text-sm text-gray-600 underline self-end mt-1">Sign Out</button>
       </div>
-      <div className="mt-8">
+      <div className="flex flex-col items-center gap-1 mt-2 mb-2">
+        <button
+          onClick={handleWorkdayIngest}
+          disabled={workdayIngestLoading}
+          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 w-64"
+        >
+          {workdayIngestLoading ? 'Connecting Workday...' : 'Connect Workday (Demo)'}
+        </button>
         <button
           onClick={handleSapIngest}
           disabled={sapLoading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 w-64"
         >
           {sapLoading ? 'Connecting SAP...' : 'Connect SAP (Demo)'}
         </button>
         {sapResult && (
-          <p className={sapResult.startsWith('Error') ? 'text-red-600 mt-2' : 'text-green-700 mt-2'}>
+          <p className={sapResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {sapResult}
           </p>
         )}
-        <button
-          onClick={handleWorkdayIngest}
-          disabled={workdayIngestLoading}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full mt-4"
-        >
-          {workdayIngestLoading ? 'Connecting Workday...' : 'Connect Workday (Demo)'}
-        </button>
         {workdayIngestResult && (
-          <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-2' : 'text-green-700 mt-2'}>
+          <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {workdayIngestResult}
           </p>
         )}
       </div>
-      <div className="mt-12">
-        <h2 className="text-xl font-bold mb-2">Normalized Workday Employee Data</h2>
-        <button onClick={fetchWorkdayData} className="mb-2 px-3 py-1 bg-gray-200 rounded">Refresh</button>
-        {workdayLoading && <p>Loading...</p>}
-        {workdayError && <p className="text-red-600">{workdayError}</p>}
-        <div className="overflow-x-auto">
-          <table className="min-w-full border text-sm">
-            <thead>
-              <tr>
-                <th className="border px-2 py-1">Employee ID</th>
-                <th className="border px-2 py-1">First Name</th>
-                <th className="border px-2 py-1">Last Name</th>
-                <th className="border px-2 py-1">Email</th>
-                <th className="border px-2 py-1">Title</th>
-                <th className="border px-2 py-1">Salary</th>
-                <th className="border px-2 py-1">Currency</th>
-                <th className="border px-2 py-1">Frequency</th>
-                <th className="border px-2 py-1">Hire Date</th>
-                <th className="border px-2 py-1">Birth Date</th>
-                <th className="border px-2 py-1">Gender</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workdayData.map((row, i) => (
-                <tr key={row.id || i}>
-                  <td className="border px-2 py-1">{row.employee_id}</td>
-                  <td className="border px-2 py-1">{row.first_name}</td>
-                  <td className="border px-2 py-1">{row.last_name}</td>
-                  <td className="border px-2 py-1">{row.email}</td>
-                  <td className="border px-2 py-1">{row.title}</td>
-                  <td className="border px-2 py-1">{row.salary}</td>
-                  <td className="border px-2 py-1">{row.currency}</td>
-                  <td className="border px-2 py-1">{row.frequency}</td>
-                  <td className="border px-2 py-1">{row.hire_date}</td>
-                  <td className="border px-2 py-1">{row.birth_date}</td>
-                  <td className="border px-2 py-1">{row.gender}</td>
+      <div className="flex flex-col md:flex-row gap-2">
+        {/* Workday Table */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold mb-1">Normalized Workday Employee Data</h2>
+          <button onClick={fetchWorkdayData} className="mb-1 px-2 py-1 bg-gray-200 rounded text-xs">Refresh</button>
+          {workdayLoading && <p>Loading...</p>}
+          {workdayError && <p className="text-red-600">{workdayError}</p>}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-xs">
+              <thead>
+                <tr>
+                  <th className="border px-1 py-1">Employee ID</th>
+                  <th className="border px-1 py-1">First Name</th>
+                  <th className="border px-1 py-1">Last Name</th>
+                  <th className="border px-1 py-1">Email</th>
+                  <th className="border px-1 py-1">Title</th>
+                  <th className="border px-1 py-1">Salary</th>
+                  <th className="border px-1 py-1">Currency</th>
+                  <th className="border px-1 py-1">Frequency</th>
+                  <th className="border px-1 py-1">Hire Date</th>
+                  <th className="border px-1 py-1">Birth Date</th>
+                  <th className="border px-1 py-1">Gender</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {workdayData.map((row, i) => (
+                  <tr key={row.id || i}>
+                    <td className="border px-1 py-1">{row.employee_id}</td>
+                    <td className="border px-1 py-1">{row.first_name}</td>
+                    <td className="border px-1 py-1">{row.last_name}</td>
+                    <td className="border px-1 py-1">{row.email}</td>
+                    <td className="border px-1 py-1">{row.title}</td>
+                    <td className="border px-1 py-1">{row.salary}</td>
+                    <td className="border px-1 py-1">{row.currency}</td>
+                    <td className="border px-1 py-1">{row.frequency}</td>
+                    <td className="border px-1 py-1">{row.hire_date}</td>
+                    <td className="border px-1 py-1">{row.birth_date}</td>
+                    <td className="border px-1 py-1">{row.gender}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* SAP Table */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold mb-1">Normalized SAP Profit Center Data</h2>
+          <button onClick={fetchNormalizedData} className="mb-1 px-2 py-1 bg-gray-200 rounded text-xs">Refresh</button>
+          {normalizedLoading && <p>Loading...</p>}
+          {normalizedError && <p className="text-red-600">{normalizedError}</p>}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-xs">
+              <thead>
+                <tr>
+                  <th className="border px-1 py-1">Profit Center ID</th>
+                  <th className="border px-1 py-1">Language</th>
+                  <th className="border px-1 py-1">Created By</th>
+                  <th className="border px-1 py-1">Created At</th>
+                  <th className="border px-1 py-1">Changed By</th>
+                  <th className="border px-1 py-1">Changed At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {normalizedData.map((row, i) => (
+                  <tr key={row.id || i}>
+                    <td className="border px-1 py-1">{row.profit_center_id || row.PROFITCENTERID}</td>
+                    <td className="border px-1 py-1">{row.language}</td>
+                    <td className="border px-1 py-1">{row.created_by}</td>
+                    <td className="border px-1 py-1">{row.created_at}</td>
+                    <td className="border px-1 py-1">{row.changed_by}</td>
+                    <td className="border px-1 py-1">{row.changed_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </main>
