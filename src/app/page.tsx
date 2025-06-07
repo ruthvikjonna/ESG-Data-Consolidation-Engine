@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import path from 'path'
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
@@ -54,6 +55,7 @@ export default function Home() {
     const session = (await supabase.auth.getSession()).data.session
     const accessToken = session?.access_token
     try {
+      const filePath = path.join(process.cwd(), 'data', 'sap-profitcenter-sample.csv')
       const res = await fetch('/api/ingest/sap', {
         method: 'POST',
         headers: {

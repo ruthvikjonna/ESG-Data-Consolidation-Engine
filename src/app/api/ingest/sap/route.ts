@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const userId = user.id;
 
     // Locate the CSV file
-    const filePath = path.join(process.cwd(), 'data', 'mock_sap_data.csv');
+    const filePath = path.join(process.cwd(), 'data', 'sap-profitcenter-sample.csv');
     const results: any[] = [];
 
     await new Promise<void>((resolve, reject) => {
