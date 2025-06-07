@@ -22,6 +22,11 @@ export default function Home() {
   const [workdayError, setWorkdayError] = useState<string | null>(null)
   const [workdayIngestLoading, setWorkdayIngestLoading] = useState(false)
   const [workdayIngestResult, setWorkdayIngestResult] = useState<string | null>(null)
+  const [quickbooksIngestLoading, setQuickbooksIngestLoading] = useState(false)
+  const [quickbooksIngestResult, setQuickbooksIngestResult] = useState<string | null>(null)
+  const [quickbooksData, setQuickbooksData] = useState<any[]>([])
+  const [quickbooksLoading, setQuickbooksLoading] = useState(false)
+  const [quickbooksError, setQuickbooksError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -100,6 +105,31 @@ export default function Home() {
     }
   }
 
+  const handleQuickbooksIngest = async () => {
+    setQuickbooksIngestLoading(true)
+    setQuickbooksIngestResult(null)
+    const session = (await supabase.auth.getSession()).data.session
+    const accessToken = session?.access_token
+    try {
+      const res = await fetch('/api/ingest/quickbooks', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setQuickbooksIngestResult(`QuickBooks data ingested and normalized! Rows: ${data.rows}`)
+      } else {
+        setQuickbooksIngestResult(`Error: ${data.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      setQuickbooksIngestResult(`Error: ${err.message}`)
+    } finally {
+      setQuickbooksIngestLoading(false)
+    }
+  }
+
   const fetchNormalizedData = async () => {
     setNormalizedLoading(true)
     setNormalizedError(null)
@@ -136,9 +166,28 @@ export default function Home() {
     }
   }
 
+  const fetchQuickbooksData = async () => {
+    setQuickbooksLoading(true)
+    setQuickbooksError(null)
+    try {
+      const res = await fetch('/api/data/quickbooks')
+      const json = await res.json()
+      if (res.ok) {
+        setQuickbooksData(json.data)
+      } else {
+        setQuickbooksError(json.error || 'Failed to fetch QuickBooks data')
+      }
+    } catch (err: any) {
+      setQuickbooksError(err.message)
+    } finally {
+      setQuickbooksLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchNormalizedData()
     fetchWorkdayData()
+    fetchQuickbooksData()
   }, [])
 
   if (!user) {
@@ -181,14 +230,26 @@ export default function Home() {
         >
           {sapLoading ? 'Connecting SAP...' : 'Connect SAP (Demo)'}
         </button>
+        <button
+          onClick={handleQuickbooksIngest}
+          disabled={quickbooksIngestLoading}
+          className="bg-blue-700 text-white px-3 py-1 rounded hover:bg-blue-800 w-64"
+        >
+          {quickbooksIngestLoading ? 'Connecting QuickBooks...' : 'Connect QuickBooks (Demo)'}
+        </button>
+        {workdayIngestResult && (
+          <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
+            {workdayIngestResult}
+          </p>
+        )}
         {sapResult && (
           <p className={sapResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {sapResult}
           </p>
         )}
-        {workdayIngestResult && (
-          <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
-            {workdayIngestResult}
+        {quickbooksIngestResult && (
+          <p className={quickbooksIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
+            {quickbooksIngestResult}
           </p>
         )}
       </div>
@@ -263,6 +324,38 @@ export default function Home() {
                     <td className="border px-1 py-1">{row.created_at}</td>
                     <td className="border px-1 py-1">{row.changed_by}</td>
                     <td className="border px-1 py-1">{row.changed_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold mb-1">Normalized QuickBooks Expenses Data</h2>
+          <button onClick={fetchQuickbooksData} className="mb-1 px-2 py-1 bg-gray-200 rounded text-xs">Refresh</button>
+          {quickbooksLoading && <p>Loading...</p>}
+          {quickbooksError && <p className="text-red-600">{quickbooksError}</p>}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-xs">
+              <thead>
+                <tr>
+                  <th className="border px-1 py-1">Expense ID</th>
+                  <th className="border px-1 py-1">Date</th>
+                  <th className="border px-1 py-1">Amount</th>
+                  <th className="border px-1 py-1">Category</th>
+                  <th className="border px-1 py-1">Vendor</th>
+                  <th className="border px-1 py-1">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quickbooksData.map((row, i) => (
+                  <tr key={row.id || i}>
+                    <td className="border px-1 py-1">{row.expense_id}</td>
+                    <td className="border px-1 py-1">{row.date}</td>
+                    <td className="border px-1 py-1">{row.amount}</td>
+                    <td className="border px-1 py-1">{row.category}</td>
+                    <td className="border px-1 py-1">{row.vendor}</td>
+                    <td className="border px-1 py-1">{row.description}</td>
                   </tr>
                 ))}
               </tbody>
