@@ -256,3 +256,21 @@ export default function Home() {
     </main>
   )
 }
+
+function normalizeWorkdayRecord(record: any) {
+  const rec = Array.isArray(record.data) ? record.data[0] : record;
+  return {
+    employee_id: rec.Worker_Reference_Employee_ID || null,
+    first_name: rec.Worker_Data?.Personal_Data?.Name_Data?.Legal_Name_Data?.Name_Detail_Data?.First_Name || null,
+    last_name: rec.Worker_Data?.Personal_Data?.Name_Data?.Legal_Name_Data?.Name_Detail_Data?.Last_Name || null,
+    email: rec.Worker_Data?.Personal_Data?.Contact_Data?.Email_Address_Data?.[0]?.Email_Address || null,
+    title: rec.Worker_Data?.Employment_Data?.Worker_Job_Data?.[0]?.Position_Data?.Position_Title || null,
+    salary: rec.Worker_Data?.Compensation_Data?.Salary_and_Hourly_Data?.[0]?.Amount || null,
+    currency: rec.Worker_Data?.Compensation_Data?.Salary_and_Hourly_Data?.[0]?.Currency_Reference_Currency_ID || null,
+    frequency: rec.Worker_Data?.Compensation_Data?.Salary_and_Hourly_Data?.[0]?.Frequency_Reference_Frequency_ID || null,
+    hire_date: rec.Worker_Data?.Employment_Data?.Worker_Status_Data?.Hire_Date || null,
+    birth_date: rec.Worker_Data?.Personal_Data?.Birth_Date || null,
+    gender: rec.Worker_Data?.Personal_Data?.Gender_Reference_Gender_Code || null,
+    original_data: record,
+  };
+}
