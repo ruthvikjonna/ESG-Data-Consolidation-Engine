@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import * as XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs/promises';
@@ -30,7 +29,7 @@ export async function POST(req: NextRequest) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, any>[];
 
-    // 1. Insert raw data into google_sheets_raw_data
+    // Insert raw data into google_sheets_raw_data
     const rawResults = rows.map((row) => ({
       user_id: userId,
       source_system: 'google_sheets',
@@ -42,27 +41,7 @@ export async function POST(req: NextRequest) {
       .insert(rawResults);
     if (rawInsertError) throw new Error(rawInsertError.message);
 
-    // 2. Normalize and insert into google_sheets_normalized_data
-    const normalizedRows = rows.map((row) => ({
-      employee_id: row['Employee ID'] || null,
-      first_name: row['First Name'] || null,
-      last_name: row['Last Name'] || null,
-      email: row['Email'] || null,
-      title: row['Title'] || null,
-      department: row['Department'] || null,
-      hire_date: row['Hire Date'] || null,
-      salary: row['Salary'] || null,
-      user_id: userId,
-      source_system: 'google_sheets',
-      original_data: row,
-      normalized_at: new Date().toISOString(),
-    }));
-    const { error: normInsertError } = await supabaseAdmin
-      .from('google_sheets_normalized_data')
-      .insert(normalizedRows);
-    if (normInsertError) throw new Error(normInsertError.message);
-
-    return NextResponse.json({ message: 'Google Sheets data ingested and normalized', rows: rows.length });
+    return NextResponse.json({ message: 'Google Sheets data ingested', rows: rows.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
