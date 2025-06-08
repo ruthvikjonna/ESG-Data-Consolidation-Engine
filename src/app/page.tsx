@@ -80,6 +80,7 @@ export default function Home() {
       const data = await res.json()
       if (res.ok) {
         setSapResult(`SAP data ingested successfully! Rows: ${data.rows}`)
+        fetchNormalizedData();
       } else {
         setSapResult(`Error: ${data.error || 'Unknown error'}`)
       }
@@ -105,6 +106,7 @@ export default function Home() {
       const data = await res.json()
       if (res.ok) {
         setWorkdayIngestResult(`Workday data ingested successfully! Rows: ${data.rows}`)
+        fetchWorkdayData();
       } else {
         setWorkdayIngestResult(`Error: ${data.error || 'Unknown error'}`)
       }
@@ -130,6 +132,7 @@ export default function Home() {
       const data = await res.json()
       if (res.ok) {
         setQuickbooksIngestResult(`QuickBooks data ingested and normalized! Rows: ${data.rows}`)
+        fetchQuickbooksData();
       } else {
         setQuickbooksIngestResult(`Error: ${data.error || 'Unknown error'}`)
       }
