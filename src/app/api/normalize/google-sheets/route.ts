@@ -3,8 +3,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: NextRequest) {
   try {
-    // Get user from Supabase Auth
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser();
+    // Extract access token from Authorization header
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader ? authHeader.replace('Bearer ', '') : undefined;
+    // Get user from Supabase Auth using the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !user) throw new Error('User not authenticated');
     const userId = user.id;
 
@@ -18,14 +21,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No Google Sheets raw data to normalize.' });
     }
     const normalizedRows = rawRows.map(row => ({
-      employee_id: row.raw_data['Employee ID'] || null,
-      first_name: row.raw_data['First Name'] || null,
-      last_name: row.raw_data['Last Name'] || null,
-      email: row.raw_data['Email'] || null,
-      title: row.raw_data['Title'] || null,
       department: row.raw_data['Department'] || null,
-      hire_date: row.raw_data['Hire Date'] || null,
-      salary: row.raw_data['Salary'] || null,
+      headcount: row.raw_data['Headcount'] || null,
+      dei_score: row.raw_data['DEI Score'] || null,
+      attrition_rate: row.raw_data['Attrition Rate (%)'] || row.raw_data['Attrition Rate'] || null,
+      reporting_period: row.raw_data['Reporting Period'] || null,
+      notes: row.raw_data['Notes'] || null,
       user_id: row.user_id,
       source_system: 'google_sheets',
       original_data: row.raw_data,
