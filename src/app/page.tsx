@@ -27,6 +27,11 @@ export default function Home() {
   const [quickbooksData, setQuickbooksData] = useState<any[]>([])
   const [quickbooksLoading, setQuickbooksLoading] = useState(false)
   const [quickbooksError, setQuickbooksError] = useState<string | null>(null)
+  const [googleSheetsIngestLoading, setGoogleSheetsIngestLoading] = useState(false)
+  const [googleSheetsIngestResult, setGoogleSheetsIngestResult] = useState<string | null>(null)
+  const [googleSheetsData, setGoogleSheetsData] = useState<any[]>([])
+  const [googleSheetsLoading, setGoogleSheetsLoading] = useState(false)
+  const [googleSheetsError, setGoogleSheetsError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -130,6 +135,45 @@ export default function Home() {
     }
   }
 
+  const handleGoogleSheetsIngest = async () => {
+    setGoogleSheetsIngestLoading(true)
+    setGoogleSheetsIngestResult(null)
+    const session = (await supabase.auth.getSession()).data.session
+    const accessToken = session?.access_token
+    try {
+      // 1. Ingest
+      const ingestRes = await fetch('/api/ingest/google-sheets', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const ingestData = await ingestRes.json()
+      if (!ingestRes.ok) {
+        setGoogleSheetsIngestResult(`Error: ${ingestData.error || 'Unknown error'}`)
+        return
+      }
+      // 2. Normalize
+      const normRes = await fetch('/api/normalize/google-sheets', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const normData = await normRes.json()
+      if (!normRes.ok) {
+        setGoogleSheetsIngestResult(`Error: ${normData.error || 'Unknown error'}`)
+        return
+      }
+      setGoogleSheetsIngestResult(`Google Sheets data ingested and normalized! Rows: ${ingestData.rows}`)
+      fetchGoogleSheetsData()
+    } catch (err: any) {
+      setGoogleSheetsIngestResult(`Error: ${err.message}`)
+    } finally {
+      setGoogleSheetsIngestLoading(false)
+    }
+  }
+
   const fetchNormalizedData = async () => {
     setNormalizedLoading(true)
     setNormalizedError(null)
@@ -184,10 +228,29 @@ export default function Home() {
     }
   }
 
+  const fetchGoogleSheetsData = async () => {
+    setGoogleSheetsLoading(true)
+    setGoogleSheetsError(null)
+    try {
+      const res = await fetch('/api/data/google-sheets')
+      const json = await res.json()
+      if (res.ok) {
+        setGoogleSheetsData(json.data)
+      } else {
+        setGoogleSheetsError(json.error || 'Failed to fetch Google Sheets data')
+      }
+    } catch (err: any) {
+      setGoogleSheetsError(err.message)
+    } finally {
+      setGoogleSheetsLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchNormalizedData()
     fetchWorkdayData()
     fetchQuickbooksData()
+    fetchGoogleSheetsData()
   }, [])
 
   if (!user) {
@@ -237,6 +300,13 @@ export default function Home() {
         >
           {quickbooksIngestLoading ? 'Connecting QuickBooks...' : 'Connect QuickBooks (Demo)'}
         </button>
+        <button
+          onClick={handleGoogleSheetsIngest}
+          disabled={googleSheetsIngestLoading}
+          className="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900 w-64"
+        >
+          {googleSheetsIngestLoading ? 'Connecting Google Sheets...' : 'Connect Google Sheets (Demo)'}
+        </button>
         {workdayIngestResult && (
           <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {workdayIngestResult}
@@ -250,6 +320,11 @@ export default function Home() {
         {quickbooksIngestResult && (
           <p className={quickbooksIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {quickbooksIngestResult}
+          </p>
+        )}
+        {googleSheetsIngestResult && (
+          <p className={googleSheetsIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
+            {googleSheetsIngestResult}
           </p>
         )}
       </div>
@@ -356,6 +431,38 @@ export default function Home() {
                     <td className="border px-1 py-1">{row.category}</td>
                     <td className="border px-1 py-1">{row.vendor}</td>
                     <td className="border px-1 py-1">{row.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold mb-1">Normalized Google Sheets Data</h2>
+          <button onClick={fetchGoogleSheetsData} className="mb-1 px-2 py-1 bg-gray-200 rounded text-xs">Refresh</button>
+          {googleSheetsLoading && <p>Loading...</p>}
+          {googleSheetsError && <p className="text-red-600">{googleSheetsError}</p>}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-xs">
+              <thead>
+                <tr>
+                  <th className="border px-1 py-1">Department</th>
+                  <th className="border px-1 py-1">Headcount</th>
+                  <th className="border px-1 py-1">DEI Score</th>
+                  <th className="border px-1 py-1">Attrition Rate</th>
+                  <th className="border px-1 py-1">Reporting Period</th>
+                  <th className="border px-1 py-1">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {googleSheetsData.map((row, i) => (
+                  <tr key={row.id || i}>
+                    <td className="border px-1 py-1">{row.department}</td>
+                    <td className="border px-1 py-1">{row.headcount}</td>
+                    <td className="border px-1 py-1">{row.dei_score}</td>
+                    <td className="border px-1 py-1">{row.attrition_rate}</td>
+                    <td className="border px-1 py-1">{row.reporting_period}</td>
+                    <td className="border px-1 py-1">{row.notes}</td>
                   </tr>
                 ))}
               </tbody>
