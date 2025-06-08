@@ -32,6 +32,11 @@ export default function Home() {
   const [googleSheetsData, setGoogleSheetsData] = useState<any[]>([])
   const [googleSheetsLoading, setGoogleSheetsLoading] = useState(false)
   const [googleSheetsError, setGoogleSheetsError] = useState<string | null>(null)
+  const [excelIngestLoading, setExcelIngestLoading] = useState(false)
+  const [excelIngestResult, setExcelIngestResult] = useState<string | null>(null)
+  const [excelData, setExcelData] = useState<any[]>([])
+  const [excelLoading, setExcelLoading] = useState(false)
+  const [excelError, setExcelError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -174,6 +179,45 @@ export default function Home() {
     }
   }
 
+  const handleExcelIngest = async () => {
+    setExcelIngestLoading(true)
+    setExcelIngestResult(null)
+    const session = (await supabase.auth.getSession()).data.session
+    const accessToken = session?.access_token
+    try {
+      // 1. Ingest
+      const ingestRes = await fetch('/api/ingest/excel', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const ingestData = await ingestRes.json()
+      if (!ingestRes.ok) {
+        setExcelIngestResult(`Error: ${ingestData.error || 'Unknown error'}`)
+        return
+      }
+      // 2. Normalize
+      const normRes = await fetch('/api/normalize/excel', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const normData = await normRes.json()
+      if (!normRes.ok) {
+        setExcelIngestResult(`Error: ${normData.error || 'Unknown error'}`)
+        return
+      }
+      setExcelIngestResult(`Excel data ingested and normalized! Rows: ${ingestData.rows}`)
+      fetchExcelData()
+    } catch (err: any) {
+      setExcelIngestResult(`Error: ${err.message}`)
+    } finally {
+      setExcelIngestLoading(false)
+    }
+  }
+
   const fetchNormalizedData = async () => {
     setNormalizedLoading(true)
     setNormalizedError(null)
@@ -246,11 +290,30 @@ export default function Home() {
     }
   }
 
+  const fetchExcelData = async () => {
+    setExcelLoading(true)
+    setExcelError(null)
+    try {
+      const res = await fetch('/api/data/excel')
+      const json = await res.json()
+      if (res.ok) {
+        setExcelData(json.data)
+      } else {
+        setExcelError(json.error || 'Failed to fetch Excel data')
+      }
+    } catch (err: any) {
+      setExcelError(err.message)
+    } finally {
+      setExcelLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchNormalizedData()
     fetchWorkdayData()
     fetchQuickbooksData()
     fetchGoogleSheetsData()
+    fetchExcelData()
   }, [])
 
   if (!user) {
@@ -307,6 +370,13 @@ export default function Home() {
         >
           {googleSheetsIngestLoading ? 'Connecting Google Sheets...' : 'Connect Google Sheets (Demo)'}
         </button>
+        <button
+          onClick={handleExcelIngest}
+          disabled={excelIngestLoading}
+          className="bg-blue-900 text-white px-3 py-1 rounded hover:bg-blue-950 w-64"
+        >
+          {excelIngestLoading ? 'Connecting Excel...' : 'Connect Excel (Demo)'}
+        </button>
         {workdayIngestResult && (
           <p className={workdayIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {workdayIngestResult}
@@ -325,6 +395,11 @@ export default function Home() {
         {googleSheetsIngestResult && (
           <p className={googleSheetsIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
             {googleSheetsIngestResult}
+          </p>
+        )}
+        {excelIngestResult && (
+          <p className={excelIngestResult.startsWith('Error') ? 'text-red-600 mt-1 text-center' : 'text-green-700 mt-1 text-center'}>
+            {excelIngestResult}
           </p>
         )}
       </div>
@@ -462,6 +537,38 @@ export default function Home() {
                     <td className="border px-1 py-1">{row.dei_score}</td>
                     <td className="border px-1 py-1">{row.attrition_rate}</td>
                     <td className="border px-1 py-1">{row.reporting_period}</td>
+                    <td className="border px-1 py-1">{row.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold mb-1">Normalized Excel Vendor Emissions Data</h2>
+          <button onClick={fetchExcelData} className="mb-1 px-2 py-1 bg-gray-200 rounded text-xs">Refresh</button>
+          {excelLoading && <p>Loading...</p>}
+          {excelError && <p className="text-red-600">{excelError}</p>}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-xs">
+              <thead>
+                <tr>
+                  <th className="border px-1 py-1">Vendor</th>
+                  <th className="border px-1 py-1">Category</th>
+                  <th className="border px-1 py-1">Amount (USD)</th>
+                  <th className="border px-1 py-1">Date</th>
+                  <th className="border px-1 py-1">Emission Scope</th>
+                  <th className="border px-1 py-1">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {excelData.map((row, i) => (
+                  <tr key={row.id || i}>
+                    <td className="border px-1 py-1">{row.vendor}</td>
+                    <td className="border px-1 py-1">{row.category}</td>
+                    <td className="border px-1 py-1">{row.amount_usd}</td>
+                    <td className="border px-1 py-1">{row.date}</td>
+                    <td className="border px-1 py-1">{row.emission_scope}</td>
                     <td className="border px-1 py-1">{row.notes}</td>
                   </tr>
                 ))}
