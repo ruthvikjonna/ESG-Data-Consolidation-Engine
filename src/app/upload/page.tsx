@@ -147,140 +147,169 @@ export default function UploadPreview() {
     }));
   };
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Upload Data</h1>
-      
-      {/* Upload Section */}
-      <div className="mb-6 p-4 border rounded">
-        <input 
-          type="file" 
-          onChange={handleFileChange} 
-          accept=".csv,.xlsx,.json" 
-          className="mb-4" 
-        />
-        <select 
-          value={sourceSystem} 
-          onChange={(e) => setSourceSystem(e.target.value)}
-          className="mb-4 block w-64 p-2 border rounded"
-        >
-          <option value="manual_upload">Manual Upload</option>
-          <option value="workday">Workday</option>
-          <option value="quickbooks">QuickBooks</option>
-          <option value="sap">SAP</option>
-          <option value="excel">Excel</option>
-        </select>
-        <button 
-          onClick={handleUpload} 
-          disabled={!file || uploading} 
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        > 
-          {uploading ? 'Uploading...' : 'Upload File'} 
-        </button>
-        {uploadResult && (
-          <p className={`mt-2 ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-            {uploadResult}
-          </p>
-        )}
-      </div>
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
-      {/* Data Preview Section */}
-      <div className="mt-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Data Preview</h2>
-          <div className="flex gap-4 items-center">
-            <select
-              value={selectedSourceFilter}
-              onChange={(e) => setSelectedSourceFilter(e.target.value)}
-              className="p-2 border rounded"
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">Bloom ESG</h1>
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-gray-600 hover:text-gray-900"
             >
-              <option value="all">All Sources</option>
-              {availableSources.map(source => (
-                <option key={source} value={source}>{source}</option>
-              ))}
-            </select>
-            <button 
-              onClick={fetchRawData}
-              className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-            >
-              Refresh
+              Sign Out
             </button>
           </div>
         </div>
-        
-        {loading && <p>Loading data...</p>}
-        {error && <p className="text-red-600">{error}</p>}
-        
-        {paginatedData.length > 0 && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-sm">
-                <thead>
-                  <tr>
-                    {Object.keys(paginatedData[0]).map((header) => (
-                      <th 
-                        key={header} 
-                        className="border px-2 py-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-                        onClick={() => handleSort(header)}
-                      >
-                        <div className="flex items-center gap-1">
-                          {header}
-                          {sortConfig.key === header && (
-                            <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedData.map((row, i) => (
-                    <tr key={i}>
-                      {Object.entries(row).map(([key, value]: [string, any], j) => (
-                        <td key={j} className="border px-2 py-2">
-                          {key === 'ingested_at' 
-                            ? new Date(value).toLocaleString()
-                            : value?.toString() ?? ''}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      </header>
 
-            {/* Pagination Controls */}
-            <div className="mt-4 flex justify-between items-center">
-              <div className="text-sm text-gray-600">
-                Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} rows
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-6">Upload Data</h2>
+          
+          {/* Upload Section */}
+          <div className="mb-6 p-4 border rounded bg-gray-50">
+            <input 
+              type="file" 
+              onChange={handleFileChange} 
+              accept=".csv,.xlsx,.json" 
+              className="mb-4 block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+            />
+            <select 
+              value={sourceSystem} 
+              onChange={(e) => setSourceSystem(e.target.value)}
+              className="mb-4 block w-64 p-2 border rounded bg-white"
+            >
+              <option value="manual_upload">Manual Upload</option>
+              <option value="workday">Workday</option>
+              <option value="quickbooks">QuickBooks</option>
+              <option value="sap">SAP</option>
+              <option value="excel">Excel</option>
+            </select>
+            <button 
+              onClick={handleUpload} 
+              disabled={!file || uploading} 
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            > 
+              {uploading ? 'Uploading...' : 'Upload File'} 
+            </button>
+            {uploadResult && (
+              <p className={`mt-2 ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                {uploadResult}
+              </p>
+            )}
+          </div>
+
+          {/* Data Preview Section */}
+          <div className="bg-white rounded-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Data Preview</h2>
+              <div className="flex gap-4 items-center">
+                <select
+                  value={selectedSourceFilter}
+                  onChange={(e) => setSelectedSourceFilter(e.target.value)}
+                  className="p-2 border rounded bg-white"
                 >
-                  Previous
-                </button>
-                <span className="px-3 py-1">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  <option value="all">All Sources</option>
+                  {availableSources.map(source => (
+                    <option key={source} value={source}>{source}</option>
+                  ))}
+                </select>
+                <button 
+                  onClick={fetchRawData}
+                  className="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 text-sm"
                 >
-                  Next
+                  Refresh
                 </button>
               </div>
             </div>
-          </>
-        )}
-        
-        {!loading && !error && rawData.length === 0 && (
-          <p className="text-gray-500">No data uploaded yet. Upload a file to see preview.</p>
-        )}
-      </div>
+            
+            {loading && <p>Loading data...</p>}
+            {error && <p className="text-red-600">{error}</p>}
+            
+            {paginatedData.length > 0 && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border text-sm">
+                    <thead>
+                      <tr>
+                        {Object.keys(paginatedData[0]).map((header) => (
+                          <th 
+                            key={header} 
+                            className="border px-2 py-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
+                            onClick={() => handleSort(header)}
+                          >
+                            <div className="flex items-center gap-1">
+                              {header}
+                              {sortConfig.key === header && (
+                                <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedData.map((row, i) => (
+                        <tr key={i}>
+                          {Object.entries(row).map(([key, value]: [string, any], j) => (
+                            <td key={j} className="border px-2 py-2">
+                              {key === 'ingested_at' 
+                                ? new Date(value).toLocaleString()
+                                : value?.toString() ?? ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="mt-4 flex justify-between items-center">
+                  <div className="text-sm text-gray-600">
+                    Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} rows
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 border rounded disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-3 py-1">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 border rounded disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {!loading && !error && rawData.length === 0 && (
+              <p className="text-gray-500">No data uploaded yet. Upload a file to see preview.</p>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
