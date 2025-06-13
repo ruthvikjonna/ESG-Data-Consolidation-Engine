@@ -71,7 +71,7 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
       <div className="max-w-md w-full p-10 bg-white rounded-xl shadow-lg border border-[#E5E7EB]">
-        <h1 className="text-3xl font-bold text-center mb-6 text-[#18181B]">Bloom Technologies</h1>
+        <h1 className="text-3xl font-bold text-center mb-6 text-[#18181B]">Bloom</h1>
         <h2 className="text-lg font-semibold text-center mb-8 text-[#18181B]">
           {authMode === 'sign-in' ? 'Welcome Back' : 'Create Account'}
         </h2>

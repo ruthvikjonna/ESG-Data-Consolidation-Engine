@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 // Default metadata for the site (can be overridden per page)
 export const metadata: Metadata = {
-  title: "Bloom ESG",
-  description: "Unified ESG data infrastructure",
+  title: "Bloom",
+  description: "ESG Data Infrastructure",
 };
 
 // Root layout that wraps every page in your app

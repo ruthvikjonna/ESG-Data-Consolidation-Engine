@@ -181,7 +181,7 @@ export default function UploadPreview() {
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-[#18181B]">Bloom ESG</h1>
+          <h1 className="text-2xl font-bold text-[#18181B]">Bloom</h1>
           <button
             onClick={handleSignOut}
             className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
