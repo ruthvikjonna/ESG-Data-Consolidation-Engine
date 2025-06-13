@@ -211,7 +211,6 @@ export default function UploadPreview() {
               <option value="manual_upload">Manual Upload</option>
               <option value="workday">Workday</option>
               <option value="quickbooks">QuickBooks</option>
-              <option value="sap">SAP</option>
               <option value="excel">Excel</option>
             </select>
             <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150">
