@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -32,6 +32,7 @@ export default function UploadPreview() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ingested_at', direction: 'desc' });
 
   const router = useRouter();
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // When a file is selected in the input, update state
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,16 +167,24 @@ export default function UploadPreview() {
     router.push('/');
   };
 
+  // Scroll table into view on page change
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    setTimeout(() => {
+      tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
+
   // Render UI
   return (
-    <div className="min-h-screen bg-[#f4f6fa]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-[#1a2233]">Bloom ESG</h1>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-[#18181B]">Bloom ESG</h1>
           <button
             onClick={handleSignOut}
-            className="text-sm text-[#1a2233] border border-[#1a2233] rounded px-4 py-2 transition-colors duration-150 hover:bg-[#1a2233] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
             Sign Out
           </button>
@@ -183,63 +192,60 @@ export default function UploadPreview() {
       </header>
 
       {/* Upload and Data Preview */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-6 text-[#1a2233]">Upload Data</h2>
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <div className="bg-white rounded-xl shadow p-8">
+          <h2 className="text-2xl font-bold mb-8 text-[#18181B]">Upload Data</h2>
 
           {/* Upload Controls */}
-          <div className="mb-6 p-4 border border-[#e0e4ea] rounded bg-[#f9fafb]">
-            <label className="block w-full mb-4">
+          <div className="mb-10 p-6 border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] flex flex-col md:flex-row md:items-end gap-6">
+            <label className="block w-full md:w-auto">
               <span className="sr-only">Choose File</span>
               <input
                 type="file"
                 onChange={handleFileChange}
                 accept=".csv,.xlsx,.json"
-                className="block w-full text-sm text-[#1a2233] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#e0e4ea] file:text-[#1a2233] hover:file:bg-[#d1d5db] focus:file:bg-[#c7d2fe] transition-colors duration-150"
+                className="block w-full text-sm text-[#18181B] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F3F4F6] file:text-[#18181B] hover:file:bg-[#E5E7EB] focus:file:bg-[#E5E7EB] transition-colors duration-150"
               />
             </label>
-            <select value={sourceSystem} onChange={(e) => setSourceSystem(e.target.value)} className="mb-4 block w-64 p-2 border border-[#e0e4ea] rounded bg-white text-[#1a2233]">
+            <select value={sourceSystem} onChange={(e) => setSourceSystem(e.target.value)} className="w-64 p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]">
               <option value="manual_upload">Manual Upload</option>
               <option value="workday">Workday</option>
               <option value="quickbooks">QuickBooks</option>
               <option value="sap">SAP</option>
               <option value="excel">Excel</option>
             </select>
-            <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#1a2233] text-white px-4 py-2 rounded hover:bg-[#2d3a5a] disabled:opacity-50 font-semibold transition-colors duration-150">
+            <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150">
               {uploading ? 'Uploading...' : 'Upload File'}
             </button>
             {uploadResult && <p className={`mt-2 font-semibold ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{uploadResult}</p>}
           </div>
 
           {/* Filter and Preview */}
-          <div className="bg-[#f9fafb] border border-[#e0e4ea] rounded">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-[#1a2233]">Data Preview</h2>
-              <div className="flex gap-4">
-                <select value={selectedSourceFilter} onChange={(e) => setSelectedSourceFilter(e.target.value)} className="p-2 border border-[#e0e4ea] rounded bg-white text-[#1a2233]">
+          <div ref={tableRef} className="bg-[#FFFFFF] border border-[#E5E7EB] rounded-lg p-6 mt-2">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+              <h2 className="text-xl font-bold text-[#18181B] mb-2 md:mb-0">Data Preview</h2>
+              <div className="flex gap-3 items-center">
+                <select value={selectedSourceFilter} onChange={(e) => setSelectedSourceFilter(e.target.value)} className="p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]">
                   <option value="all">All Sources</option>
                   {availableSources.map(source => <option key={source} value={source}>{source}</option>)}
                 </select>
-                <button
-                  onClick={fetchRawData}
-                  className="px-4 py-2 bg-[#1a2233] text-white text-base font-bold rounded hover:bg-[#2d3a5a] border border-[#1a2233] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
+                <button onClick={fetchRawData} className="px-5 py-2 bg-[#2563EB] text-white text-base font-bold rounded hover:bg-[#1D4ED8] border border-[#2563EB] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
                   Refresh
                 </button>
               </div>
             </div>
 
-            {loading && <p className="text-[#1a2233] font-semibold">Loading data...</p>}
+            {loading && <p className="text-[#18181B] font-semibold">Loading data...</p>}
             {error && <p className="text-red-600 font-semibold">{error}</p>}
 
             {paginatedData.length > 0 && (
               <>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-[#e0e4ea] text-sm bg-white">
-                    <thead className="bg-[#e0e4ea]">
+                <div className="overflow-x-auto rounded-lg border border-[#E5E7EB]">
+                  <table className="min-w-full text-sm bg-white">
+                    <thead className="bg-[#F3F4F6]">
                       <tr>
                         {Object.keys(paginatedData[0] || {}).map((key) => (
-                          <th key={key} className="border border-[#e0e4ea] px-3 py-2 text-left font-bold text-[#1a2233] cursor-pointer select-none hover:bg-[#d1d5db] transition-colors duration-150" onClick={() => handleSort(key)}>
+                          <th key={key} className="border-b border-[#E5E7EB] px-4 py-3 text-left font-bold text-[#18181B] cursor-pointer select-none hover:bg-[#E5E7EB] transition-colors duration-150" onClick={() => handleSort(key)}>
                             {key}
                             {sortConfig.key === key && <span className="ml-1 text-xs">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>}
                           </th>
@@ -248,9 +254,9 @@ export default function UploadPreview() {
                     </thead>
                     <tbody>
                       {paginatedData.map((row, i) => (
-                        <tr key={i} className="hover:bg-[#f1f5f9] transition-colors duration-150">
+                        <tr key={i} className="hover:bg-[#F8FAFC] transition-colors duration-150">
                           {Object.values(row).map((value, j) => (
-                            <td key={j} className="border border-[#e0e4ea] px-3 py-2 text-[#1a2233]">
+                            <td key={j} className="px-4 py-3 text-[#18181B] border-b border-[#E5E7EB]">
                               {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                             </td>
                           ))}
@@ -261,18 +267,18 @@ export default function UploadPreview() {
                 </div>
 
                 {/* Pagination Controls */}
-                <div className="mt-4 flex justify-between items-center">
-                  <div className="text-sm text-[#1a2233]">
+                <div className="mt-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-2 pb-2">
+                  <div className="text-sm text-[#18181B] pl-1">
                     Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} rows
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 border border-[#e0e4ea] rounded disabled:opacity-50 bg-white text-[#1a2233] hover:bg-[#e0e4ea] transition-colors duration-150">
+                    <button onClick={() => handlePageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-4 py-2 border border-[#E5E7EB] rounded bg-[#F3F4F6] text-[#18181B] hover:bg-[#E5E7EB] disabled:opacity-50 transition-colors duration-150">
                       Previous
                     </button>
-                    <span className="px-3 py-1 text-[#1a2233]">
+                    <span className="px-4 py-2 text-[#18181B] bg-[#F8FAFC] rounded">
                       Page {currentPage} of {totalPages}
                     </span>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 border border-[#e0e4ea] rounded disabled:opacity-50 bg-white text-[#1a2233] hover:bg-[#e0e4ea] transition-colors duration-150">
+                    <button onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border border-[#E5E7EB] rounded bg-[#F3F4F6] text-[#18181B] hover:bg-[#E5E7EB] disabled:opacity-50 transition-colors duration-150">
                       Next
                     </button>
                   </div>
