@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 type SortConfig = {
   key: string;
@@ -23,6 +24,8 @@ export default function UploadPreview() {
   const [selectedSourceFilter, setSelectedSourceFilter] = useState<string>('all');
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ingested_at', direction: 'desc' });
+
+  const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -149,10 +152,11 @@ export default function UploadPreview() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    router.push('/');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -160,7 +164,7 @@ export default function UploadPreview() {
             <h1 className="text-2xl font-bold text-gray-900">Bloom ESG</h1>
             <button
               onClick={handleSignOut}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-blue-600 hover:text-blue-800 font-semibold px-4 py-2 border border-blue-600 rounded transition"
             >
               Sign Out
             </button>
@@ -171,15 +175,15 @@ export default function UploadPreview() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-6">Upload Data</h2>
+          <h2 className="text-xl font-semibold mb-6 text-gray-900">Upload Data</h2>
           
           {/* Upload Section */}
-          <div className="mb-6 p-4 border rounded bg-gray-50">
+          <div className="mb-6 p-4 border border-gray-300 rounded bg-gray-50">
             <input 
               type="file" 
               onChange={handleFileChange} 
               accept=".csv,.xlsx,.json" 
-              className="mb-4 block w-full text-sm text-gray-500
+              className="mb-4 block w-full text-sm text-gray-700
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-md file:border-0
                 file:text-sm file:font-semibold
@@ -189,7 +193,7 @@ export default function UploadPreview() {
             <select 
               value={sourceSystem} 
               onChange={(e) => setSourceSystem(e.target.value)}
-              className="mb-4 block w-64 p-2 border rounded bg-white"
+              className="mb-4 block w-64 p-2 border border-gray-300 rounded bg-white text-gray-900"
             >
               <option value="manual_upload">Manual Upload</option>
               <option value="workday">Workday</option>
@@ -200,26 +204,26 @@ export default function UploadPreview() {
             <button 
               onClick={handleUpload} 
               disabled={!file || uploading} 
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 font-semibold"
             > 
               {uploading ? 'Uploading...' : 'Upload File'} 
             </button>
             {uploadResult && (
-              <p className={`mt-2 ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+              <p className={`mt-2 ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'} font-semibold`}>
                 {uploadResult}
               </p>
             )}
           </div>
 
           {/* Data Preview Section */}
-          <div className="bg-white rounded-lg">
+          <div className="bg-white rounded-lg border border-gray-300">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Data Preview</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Data Preview</h2>
               <div className="flex gap-4 items-center">
                 <select
                   value={selectedSourceFilter}
                   onChange={(e) => setSelectedSourceFilter(e.target.value)}
-                  className="p-2 border rounded bg-white"
+                  className="p-2 border border-gray-300 rounded bg-white text-gray-900"
                 >
                   <option value="all">All Sources</option>
                   {availableSources.map(source => (
@@ -228,46 +232,42 @@ export default function UploadPreview() {
                 </select>
                 <button 
                   onClick={fetchRawData}
-                  className="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 text-sm"
+                  className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300 text-sm font-semibold border border-gray-300"
                 >
                   Refresh
                 </button>
               </div>
             </div>
             
-            {loading && <p>Loading data...</p>}
-            {error && <p className="text-red-600">{error}</p>}
+            {loading && <p className="text-gray-700 font-semibold">Loading data...</p>}
+            {error && <p className="text-red-600 font-semibold">{error}</p>}
             
             {paginatedData.length > 0 && (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border text-sm">
-                    <thead>
+                  <table className="min-w-full border border-gray-300 text-sm bg-white">
+                    <thead className="bg-gray-100">
                       <tr>
-                        {Object.keys(paginatedData[0]).map((header) => (
-                          <th 
-                            key={header} 
-                            className="border px-2 py-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-                            onClick={() => handleSort(header)}
+                        {Object.keys(paginatedData[0] || {}).map((key) => (
+                          <th
+                            key={key}
+                            className="border border-gray-300 px-3 py-2 text-left font-bold text-gray-900 cursor-pointer select-none"
+                            onClick={() => handleSort(key)}
                           >
-                            <div className="flex items-center gap-1">
-                              {header}
-                              {sortConfig.key === header && (
-                                <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                              )}
-                            </div>
+                            {key}
+                            {sortConfig.key === key && (
+                              <span className="ml-1 text-xs">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                            )}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedData.map((row, i) => (
-                        <tr key={i}>
-                          {Object.entries(row).map(([key, value]: [string, any], j) => (
-                            <td key={j} className="border px-2 py-2">
-                              {key === 'ingested_at' 
-                                ? new Date(value).toLocaleString()
-                                : value?.toString() ?? ''}
+                        <tr key={i} className="hover:bg-gray-50">
+                          {Object.values(row).map((value, j) => (
+                            <td key={j} className="border border-gray-300 px-3 py-2 text-gray-800">
+                              {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
                             </td>
                           ))}
                         </tr>
@@ -278,24 +278,24 @@ export default function UploadPreview() {
 
                 {/* Pagination Controls */}
                 <div className="mt-4 flex justify-between items-center">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-700">
                     Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} rows
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1 border rounded disabled:opacity-50"
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 bg-white text-gray-900"
                     >
                       Previous
                     </button>
-                    <span className="px-3 py-1">
+                    <span className="px-3 py-1 text-gray-900">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1 border rounded disabled:opacity-50"
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 bg-white text-gray-900"
                     >
                       Next
                     </button>
@@ -305,7 +305,7 @@ export default function UploadPreview() {
             )}
             
             {!loading && !error && rawData.length === 0 && (
-              <p className="text-gray-500">No data uploaded yet. Upload a file to see preview.</p>
+              <p className="text-gray-500 font-semibold">No data uploaded yet. Upload a file to see preview.</p>
             )}
           </div>
         </div>
