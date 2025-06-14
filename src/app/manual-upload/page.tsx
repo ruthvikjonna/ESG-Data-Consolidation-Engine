@@ -11,508 +11,214 @@ type SortConfig = {
   direction: 'asc' | 'desc';
 };
 
-export default function UploadPreview() {
-  // State variables for file upload and form controls
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<string | null>(null);
-
-  // State for managing ingested raw data
-  const [rawData, setRawData] = useState<any[]>([]);
+export default function ManualUpload() {
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
+  const [sheetData, setSheetData] = useState<any[][]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sourceSystem, setSourceSystem] = useState<string>('manual_upload');
-  
-  // QuickBooks connection state
-  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState<boolean>(false);
-
-  // Pagination and filtering controls
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(10);
-  const [selectedSourceFilter, setSelectedSourceFilter] = useState<string>('all');
-  const [availableSources, setAvailableSources] = useState<string[]>([]);
-
-  // Sorting configuration for table display
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ingested_at', direction: 'desc' });
-
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const router = useRouter();
-  const tableRef = useRef<HTMLDivElement>(null);
 
-  // When a file is selected in the input, update state
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+  // Auth check and admin check
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      // For now, treat the first user as admin (replace with real role check)
+      setIsAdmin(!!data.user);
+      if (!data.user) router.push("/");
+    });
+  }, [router]);
+
+  // Step 1: Fetch Excel files (or list manual upload files)
+  useEffect(() => {
+    if (step === 1 && isAdmin) {
+      setLoading(true);
+      fetch("/api/excel/files")
+        .then((res) => res.json())
+        .then((data) => setFiles(data.files || []))
+        .finally(() => setLoading(false));
     }
-  };
+  }, [step, isAdmin]);
 
-  // Handles file upload via API
-  const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
-    setUploadResult(null);
-
-    const session = (await supabase.auth.getSession()).data.session;
-    const accessToken = session?.access_token;
-    const user_id = session?.user?.id;
-
-    if (!user_id) {
-      setUploadResult("User not authenticated.");
-      setUploading(false);
-      return;
+  // Step 2: Fetch sheets in selected file (or preview manual upload)
+  useEffect(() => {
+    if (step === 2 && selectedFile) {
+      setLoading(true);
+      fetch(`/api/excel/sheets?fileId=${selectedFile}`)
+        .then((res) => res.json())
+        .then((data) => setSheets(data.sheets || []))
+        .finally(() => setLoading(false));
     }
+  }, [step, selectedFile]);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("user_id", user_id);
-    formData.append("source_system", sourceSystem);
+  // Step 3: Fetch data from selected sheet (or process manual upload)
+  useEffect(() => {
+    if (step === 3 && selectedFile && selectedSheet) {
+      setLoading(true);
+      fetch(`/api/excel/data?fileId=${selectedFile}&sheetName=${encodeURIComponent(selectedSheet)}`)
+        .then((res) => res.json())
+        .then((data) => setSheetData(data.values || []))
+        .finally(() => setLoading(false));
+    }
+  }, [step, selectedFile, selectedSheet]);
 
+  // Import data to Supabase (or insert manual upload data)
+  const handleImport = async () => {
+    if (!user || !sheetData.length) return;
+    setImporting(true);
+    setImportResult(null);
     try {
-      const res = await fetch("/api/ingest", {
-        method: "POST",
-        body: formData,
-        headers: { Authorization: `Bearer ${accessToken}` }
+      const headers = sheetData[0];
+      const rows = sheetData.slice(1).map((row: any[]) => {
+        const obj: Record<string, any> = {};
+        headers.forEach((h: string, i: number) => {
+          obj[h] = row[i];
+        });
+        return obj;
       });
-
-      const data = await res.json();
-      if (res.ok) {
-        setUploadResult(`Ingest complete: ${data.count} rows.`);
-        fetchRawData();
-        fetchAvailableSources(); // Refresh source filter list
-      } else {
-        setUploadResult(`Error: ${data.error || "Unknown error."}`);
-      }
-    } catch (err: any) {
-      setUploadResult(`Error: ${err.message}`);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Fetch distinct source systems from the ingested data
-  const fetchAvailableSources = async () => {
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      const user_id = session?.user?.id;
-      if (!user_id) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from('raw_data')
-        .select('source_system')
-        .eq('user_id', user_id)
-        .order('source_system');
-
+      const { error } = await supabase.from("raw_data").insert(
+        rows.map((row: any) => ({ user_id: user.id, source_system: "excel_api", raw_data: row, ingested_at: new Date().toISOString() }))
+      );
       if (error) throw error;
-      const sources = [...new Set(data.map(row => row.source_system))];
-      setAvailableSources(sources);
+      setImportResult(`Imported ${rows.length} rows to Bloom.`);
     } catch (err: any) {
-      console.error('Error fetching sources:', err);
-    }
-  };
-
-  // Retrieve ingested raw data for current user and selected filter
-  const fetchRawData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      const user_id = session?.user?.id;
-      if (!user_id) throw new Error("Not authenticated");
-
-      let query = supabase
-        .from('raw_data')
-        .select('raw_data, source_system, ingested_at')
-        .eq('user_id', user_id)
-        .order('ingested_at', { ascending: false });
-
-      if (selectedSourceFilter !== 'all') {
-        query = query.eq('source_system', selectedSourceFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      setRawData(data.map(row => ({ ...row.raw_data, ingested_at: row.ingested_at })));
-    } catch (err: any) {
-      setError(err.message);
+      setImportResult(`Error: ${err.message}`);
     } finally {
-      setLoading(false);
+      setImporting(false);
     }
   };
 
-  // Check for QuickBooks connection on page load
-  useEffect(() => {
-    // Check if the QuickBooks connection cookie exists
-    const qbConnected = document.cookie
-      .split(';')
-      .some(cookie => cookie.trim().startsWith('qb_connected=true'));
-    
-    setIsQuickBooksConnected(qbConnected);
-    if (qbConnected) {
-      console.log('QuickBooks connection detected');
-    }
-  }, []);
+  if (!user || !isAdmin) return null;
 
-  // Fetch data when the source filter changes
-  useEffect(() => {
-    fetchRawData();
-    fetchAvailableSources();
-  }, [selectedSourceFilter]);
-
-  // Sorts table data based on user-selected column and direction
-  const sortedData = [...rawData].sort((a, b) => {
-    if (!a[sortConfig.key] || !b[sortConfig.key]) return 0;
-    const aValue = a[sortConfig.key].toString().toLowerCase();
-    const bValue = b[sortConfig.key].toString().toLowerCase();
-    return sortConfig.direction === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
-  });
-
-  // Calculate and slice the current page's data
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage);
-  const paginatedData = sortedData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
-  // Toggle sorting when column headers are clicked
-  const handleSort = (key: string) => {
-    setSortConfig(current => ({
-      key,
-      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  // Sign out user and redirect
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
-
-  // Scroll table into view on page change
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    setTimeout(() => {
-      tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 0);
-  };
-
-  // Render UI
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-[#18181B]">Bloom</h1>
+        <div className="max w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-[#18181B]">Bloom ESG – Manual Upload</h1>
           <button
-            onClick={handleSignOut}
+            onClick={() => { supabase.auth.signOut(); router.push("/"); }}
             className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
             Sign Out
           </button>
         </div>
       </header>
-
-      {/* Upload and Data Preview */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
+      <main className="max-w-3xl mx-auto px-6 py-10">
         <div className="bg-white rounded-xl shadow p-8">
-          <h2 className="text-2xl font-bold mb-8 text-[#18181B]">Upload Data</h2>
-
-          {/* Upload Controls */}
-          <div className="mb-10 p-6 border border-[#E5E7EB] rounded-lg bg-[#F8FAFC]">
-            {/* Source System Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Data Source</label>
-              <select 
-                value={sourceSystem} 
-                onChange={(e) => setSourceSystem(e.target.value)} 
-                className="w-full p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]"
+          <h2 className="text-2xl font-bold mb-8 text-[#18181B]">Import Data (Manual Upload)</h2>
+          {/* Step 1: Select File (or upload file) */}
+          {step === 1 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Step 1: Select an Excel File (or upload a file)</h3>
+              {loading ? (
+                <p>Loading files...</p>
+              ) : files.length === 0 ? (
+                <p>No Excel files found in your OneDrive Business (or no manual uploads).</p>
+              ) : (
+                <ul className="space-y-2">
+                  {files.map((file) => (
+                    <li key={file.id}>
+                      <button
+                        className="w-full text-left px-4 py-2 rounded border border-[#E5E7EB] bg-[#F8FAFC] hover:bg-[#F3F4F6] text-[#18181B] font-semibold"
+                        onClick={() => { setSelectedFile(file.id); setStep(2); }}
+                      >
+                        {file.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {/* Step 2: Select Sheet (or preview manual upload) */}
+          {step === 2 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Step 2: Select a Sheet (or preview manual upload)</h3>
+              <button
+                className="mb-4 text-[#2563EB] hover:underline"
+                onClick={() => setStep(1)}
               >
-                <option value="manual_upload">Manual Upload</option>
-                <option value="workday">Workday</option>
-                <option value="quickbooks">QuickBooks</option>
-                <option value="excel">Excel</option>
-              </select>
+                ← Back to files
+              </button>
+              {loading ? (
+                <p>Loading sheets (or preview)…</p>
+              ) : sheets.length === 0 ? (
+                <p>No sheets (or preview) found.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {sheets.map((sheet) => (
+                    <li key={sheet.id}>
+                      <button
+                        className="w-full text-left px-4 py-2 rounded border border-[#E5E7EB] bg-[#F8FAFC] hover:bg-[#F3F4F6] text-[#18181B] font-semibold"
+                        onClick={() => { setSelectedSheet(sheet.name); setStep(3); }}
+                      >
+                        {sheet.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            
-            {/* QuickBooks Import Section */}
-            {sourceSystem === 'quickbooks' ? (
-              <div className="mb-4">
-                <div className="flex flex-col">
-                  <div className="mb-6 bg-blue-50 p-4 rounded-md border border-blue-200">
-                    <h3 className="font-semibold text-blue-800 mb-2">QuickBooks Integration</h3>
-                    <p className="text-sm text-blue-600 mb-2">
-                      Import financial data directly from your QuickBooks account. You can import customers, invoices, and accounts.
-                    </p>
-                    
-                    {isQuickBooksConnected ? (
-                      <>
-                        <div className="my-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                          ✓ Your QuickBooks account is connected. You can now import your data.
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <button 
-                            onClick={async () => {
-                              try {
-                                setUploading(true);
-                                const res = await fetch('/api/quickbooks/data?type=invoices');
-                                if (!res.ok) {
-                                  const errorData = await res.json();
-                                  throw new Error(errorData.error || 'Failed to fetch invoices');
-                                }
-                                const data = await res.json();
-                                
-                                // Store the imported data in Supabase
-                                const session = (await supabase.auth.getSession()).data.session;
-                                const user_id = session?.user?.id;
-                                
-                                if (!user_id) {
-                                  setUploadResult("User not authenticated.");
-                                  return;
-                                }
-                                
-                                // Handle the actual QuickBooks API response structure
-                                const invoices = data.data && data.data.Invoice ? data.data.Invoice : [];
-                                
-                                const { error } = await supabase.from('raw_data').insert({
-                                  user_id,
-                                  raw_data: invoices,
-                                  source_system: 'quickbooks',
-                                });
-                                
-                                if (error) throw error;
-                                
-                                const invoiceCount = invoices.length;
-                                setUploadResult(`Successfully imported ${invoiceCount} invoices from QuickBooks`);
-                                fetchRawData();
-                                fetchAvailableSources();
-                              } catch (err: any) {
-                                console.error('Import error:', err);
-                                setUploadResult(`Error: ${err.message}`);
-                                
-                                // If we get an auth error, the token might have expired
-                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
-                                  setIsQuickBooksConnected(false);
-                                }
-                              } finally {
-                                setUploading(false);
-                              }
-                            }}
-                            disabled={uploading}
-                            className="bg-[#2563EB] text-white px-4 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150"
-                          >
-                            {uploading ? 'Importing...' : 'Import Invoices'}
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              try {
-                                setUploading(true);
-                                const res = await fetch('/api/quickbooks/data?type=customers');
-                                if (!res.ok) {
-                                  const errorData = await res.json();
-                                  throw new Error(errorData.error || 'Failed to fetch customers');
-                                }
-                                const data = await res.json();
-                                
-                                // Store the imported data in Supabase
-                                const session = (await supabase.auth.getSession()).data.session;
-                                const user_id = session?.user?.id;
-                                
-                                if (!user_id) {
-                                  setUploadResult("User not authenticated.");
-                                  return;
-                                }
-                                
-                                // Handle the actual QuickBooks API response structure
-                                const customers = data.data && data.data.Customer ? data.data.Customer : [];
-                                
-                                const { error } = await supabase.from('raw_data').insert({
-                                  user_id,
-                                  raw_data: customers,
-                                  source_system: 'quickbooks',
-                                });
-                                
-                                if (error) throw error;
-                                
-                                const customerCount = customers.length;
-                                setUploadResult(`Successfully imported ${customerCount} customers from QuickBooks`);
-                                fetchRawData();
-                                fetchAvailableSources();
-                              } catch (err: any) {
-                                console.error('Import error:', err);
-                                setUploadResult(`Error: ${err.message}`);
-                                
-                                // If we get an auth error, the token might have expired
-                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
-                                  setIsQuickBooksConnected(false);
-                                }
-                              } finally {
-                                setUploading(false);
-                              }
-                            }}
-                            disabled={uploading}
-                            className="bg-white text-[#2563EB] border border-[#2563EB] px-4 py-2 rounded font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors duration-150"
-                          >
-                            {uploading ? 'Importing...' : 'Import Customers'}
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              try {
-                                setUploading(true);
-                                const res = await fetch('/api/quickbooks/data?type=accounts');
-                                if (!res.ok) {
-                                  const errorData = await res.json();
-                                  throw new Error(errorData.error || 'Failed to fetch accounts');
-                                }
-                                const data = await res.json();
-                                
-                                // Store the imported data in Supabase
-                                const session = (await supabase.auth.getSession()).data.session;
-                                const user_id = session?.user?.id;
-                                
-                                if (!user_id) {
-                                  setUploadResult("User not authenticated.");
-                                  return;
-                                }
-                                
-                                // Handle the actual QuickBooks API response structure
-                                const accounts = data.data && data.data.Account ? data.data.Account : [];
-                                
-                                const { error } = await supabase.from('raw_data').insert({
-                                  user_id,
-                                  raw_data: accounts,
-                                  source_system: 'quickbooks',
-                                });
-                                
-                                if (error) throw error;
-                                
-                                const accountCount = accounts.length;
-                                setUploadResult(`Successfully imported ${accountCount} accounts from QuickBooks`);
-                                fetchRawData();
-                                fetchAvailableSources();
-                              } catch (err: any) {
-                                console.error('Import error:', err);
-                                setUploadResult(`Error: ${err.message}`);
-                                
-                                // If we get an auth error, the token might have expired
-                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
-                                  setIsQuickBooksConnected(false);
-                                }
-                              } finally {
-                                setUploading(false);
-                              }
-                            }}
-                            disabled={uploading}
-                            className="bg-white text-[#2563EB] border border-[#2563EB] px-4 py-2 rounded font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors duration-150"
-                          >
-                            {uploading ? 'Importing...' : 'Import Accounts'}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="my-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
-                          You need to connect your QuickBooks account first to import data.
-                        </div>
-                        <div className="mt-4">
-                          <button 
-                            onClick={() => {
-                              window.location.href = '/api/quickbooks/auth';
-                            }}
-                            className="bg-[#2563EB] text-white px-4 py-2 rounded font-semibold hover:bg-[#1D4ED8] transition-colors duration-150"
-                          >
-                            Connect QuickBooks
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col md:flex-row md:items-end gap-6">
-                <label className="block w-full md:w-auto">
-                  <span className="sr-only">Choose File</span>
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".csv,.xlsx,.json"
-                    className="block w-full text-sm text-[#18181B] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F3F4F6] file:text-[#18181B] hover:file:bg-[#E5E7EB] focus:file:bg-[#E5E7EB] transition-colors duration-150"
-                  />
-                </label>
-                <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150">
-                  {uploading ? 'Uploading...' : 'Upload File'}
-                </button>
-              </div>
-            )}
-            
-            {uploadResult && <p className={`mt-4 font-semibold ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{uploadResult}</p>}
-          </div>
-
-          {/* Filter and Preview */}
-          <div ref={tableRef} className="bg-[#FFFFFF] border border-[#E5E7EB] rounded-lg p-6 mt-2">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-              <h2 className="text-xl font-bold text-[#18181B] mb-2 md:mb-0">Data Preview</h2>
-              <div className="flex gap-3 items-center">
-                <select value={selectedSourceFilter} onChange={(e) => setSelectedSourceFilter(e.target.value)} className="p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]">
-                  <option value="all">All Sources</option>
-                  {availableSources.map(source => <option key={source} value={source}>{source}</option>)}
-                </select>
-                <button onClick={fetchRawData} className="px-5 py-2 bg-[#2563EB] text-white text-base font-bold rounded hover:bg-[#1D4ED8] border border-[#2563EB] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
-                  Refresh
-                </button>
-              </div>
-            </div>
-
-            {loading && <p className="text-[#18181B] font-semibold">Loading data...</p>}
-            {error && <p className="text-red-600 font-semibold">{error}</p>}
-
-            {paginatedData.length > 0 && (
-              <>
-                <div className="overflow-x-auto rounded-lg border border-[#E5E7EB]">
-                  <table className="min-w-full text-sm bg-white">
-                    <thead className="bg-[#F3F4F6]">
-                      <tr>
-                        {Object.keys(paginatedData[0] || {}).map((key) => (
-                          <th key={key} className="border-b border-[#E5E7EB] px-4 py-3 text-left font-bold text-[#18181B] cursor-pointer select-none hover:bg-[#E5E7EB] transition-colors duration-150" onClick={() => handleSort(key)}>
-                            {key}
-                            {sortConfig.key === key && <span className="ml-1 text-xs">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedData.map((row, i) => (
-                        <tr key={i} className="hover:bg-[#F8FAFC] transition-colors duration-150">
-                          {Object.values(row).map((value, j) => (
-                            <td key={j} className="px-4 py-3 text-[#18181B] border-b border-[#E5E7EB]">
-                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
+          )}
+          {/* Step 3: Preview Data (or process manual upload) */}
+          {step === 3 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Step 3: Preview Data (or process manual upload)</h3>
+              <button
+                className="mb-4 text-[#2563EB] hover:underline"
+                onClick={() => setStep(2)}
+              >
+                ← Back to sheets
+              </button>
+              {loading ? (
+                <p>Loading data (or processing)…</p>
+              ) : sheetData.length === 0 ? (
+                <p>No data (or manual upload) found.</p>
+              ) : (
+                <div className="overflow-x-auto mb-6">
+                  <table className="min-w-full text-sm bg-white border border-[#E5E7EB] rounded">
+                     <thead className="bg-[#F3F4F6]">
+                       <tr>
+                         {sheetData[0].map((header: string, i: number) => (
+                           <th key={i} className="px-4 py-2 text-left font-bold text-[#18181B] border-b border-[#E5E7EB]">
+                             {header}
+                           </th>
+                         ))}
+                       </tr>
+                     </thead>
+                     <tbody>
+                       {sheetData.slice(1, 11).map((row: any[], i: number) => (
+                         <tr key={i} className="hover:bg-[#F8FAFC]">
+                           {row.map((cell, j) => (
+                             <td key={j} className="px-4 py-2 text-[#18181B] border-b border-[#E5E7EB]">
+                               {cell}
+                             </td>
+                           ))}
+                         </tr>
+                       ))}
+                     </tbody>
                   </table>
+                  <p className="text-xs text-gray-500 mt-2">Showing first 10 rows.</p>
                 </div>
-
-                {/* Pagination Controls */}
-                <div className="mt-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-2 pb-2">
-                  <div className="text-sm text-[#18181B] pl-1">
-                    Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} rows
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handlePageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-4 py-2 border border-[#E5E7EB] rounded bg-[#F3F4F6] text-[#18181B] hover:bg-[#E5E7EB] disabled:opacity-50 transition-colors duration-150">
-                      Previous
-                    </button>
-                    <span className="px-4 py-2 text-[#18181B] bg-[#F8FAFC] rounded">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border border-[#E5E7EB] rounded bg-[#F3F4F6] text-[#18181B] hover:bg-[#E5E7EB] disabled:opacity-50 transition-colors duration-150">
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-            {!loading && !error && rawData.length === 0 && (
-              <p className="text-[#6b7280] font-semibold">No data uploaded yet. Upload a file to see preview.</p>
-            )}
-          </div>
+              )}
+              <button
+                onClick={handleImport}
+                disabled={importing || !sheetData.length}
+                className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150"
+              >
+                {importing ? "Importing (or processing)…" : "Import to Bloom (or process manual upload)"}
+              </button>
+              {importResult && (
+                <p className={`mt-4 font-semibold ${importResult.startsWith("Error") ? "text-red-600" : "text-green-600"}`}>{importResult}</p>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
