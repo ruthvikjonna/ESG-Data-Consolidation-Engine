@@ -1,25 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Helper to get an access token from Microsoft Graph
-async function getAccessToken() {
-  const tenantId = process.env.AZURE_TENANT_ID;
-  const clientId = process.env.AZURE_CLIENT_ID;
-  const clientSecret = process.env.AZURE_CLIENT_SECRET;
-
-  const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: clientId!,
-      client_secret: clientSecret!,
-      scope: 'https://graph.microsoft.com/.default',
-    }),
-  });
-  const tokenData = await tokenRes.json();
-  if (!tokenData.access_token) throw new Error('Failed to get access token');
-  return tokenData.access_token;
-}
+import { cookies } from 'next/headers';
 
 // GET /api/excel/data?fileId=...&sheetName=... - Fetch data from a worksheet
 export async function GET(req: NextRequest) {
@@ -28,20 +8,15 @@ export async function GET(req: NextRequest) {
     const fileId = searchParams.get('fileId');
     const sheetName = searchParams.get('sheetName');
     if (!fileId || !sheetName) return NextResponse.json({ error: 'Missing fileId or sheetName' }, { status: 400 });
-
-    const accessToken = await getAccessToken();
-    // For MVP, use the first user in the directory
-    const usersRes = await fetch('https://graph.microsoft.com/v1.0/users', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const usersData = await usersRes.json();
-    const user = usersData.value?.[0];
-    if (!user) throw new Error('No users found in directory');
-
+    const accessToken = req.cookies.get('ms_access_token')?.value;
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Not authenticated with Microsoft' }, { status: 401 });
+    }
     // Fetch the used range of the worksheet
-    const rangeRes = await fetch(`https://graph.microsoft.com/v1.0/users/${user.id}/drive/items/${fileId}/workbook/worksheets/${sheetName}/usedRange`, {
+    const rangeRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${sheetName}/usedRange`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    if (!rangeRes.ok) throw new Error('Failed to fetch sheet data');
     const rangeData = await rangeRes.json();
     const values = rangeData.values || [];
     return NextResponse.json({ values });
