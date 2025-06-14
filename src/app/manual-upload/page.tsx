@@ -103,11 +103,11 @@ export default function ManualUpload() {
         return obj;
       });
       // Optional: Add row-level validation here
-      const { error } = await supabase.from("raw_data").insert(
+      const { error } = await supabase.from("ingested_data").insert(
         rows.map((row: any) => ({
           user_id: user.id,
           source_system: "manual_upload",
-          raw_data: row,
+          raw_payload: row,
           ingested_at: new Date().toISOString(),
         }))
       );
