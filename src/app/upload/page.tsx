@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // Type used to track column and direction for sorting table data
 type SortConfig = {
@@ -21,6 +22,9 @@ export default function UploadPreview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceSystem, setSourceSystem] = useState<string>('manual_upload');
+  
+  // QuickBooks connection state
+  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState<boolean>(false);
 
   // Pagination and filtering controls
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,6 +139,19 @@ export default function UploadPreview() {
     }
   };
 
+  // Check for QuickBooks connection on page load
+  useEffect(() => {
+    // Check if the QuickBooks connection cookie exists
+    const qbConnected = document.cookie
+      .split(';')
+      .some(cookie => cookie.trim().startsWith('qb_connected=true'));
+    
+    setIsQuickBooksConnected(qbConnected);
+    if (qbConnected) {
+      console.log('QuickBooks connection detected');
+    }
+  }, []);
+
   // Fetch data when the source filter changes
   useEffect(() => {
     fetchRawData();
@@ -197,26 +214,234 @@ export default function UploadPreview() {
           <h2 className="text-2xl font-bold mb-8 text-[#18181B]">Upload Data</h2>
 
           {/* Upload Controls */}
-          <div className="mb-10 p-6 border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] flex flex-col md:flex-row md:items-end gap-6">
-            <label className="block w-full md:w-auto">
-              <span className="sr-only">Choose File</span>
-              <input
-                type="file"
-                onChange={handleFileChange}
-                accept=".csv,.xlsx,.json"
-                className="block w-full text-sm text-[#18181B] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F3F4F6] file:text-[#18181B] hover:file:bg-[#E5E7EB] focus:file:bg-[#E5E7EB] transition-colors duration-150"
-              />
-            </label>
-            <select value={sourceSystem} onChange={(e) => setSourceSystem(e.target.value)} className="w-64 p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]">
-              <option value="manual_upload">Manual Upload</option>
-              <option value="workday">Workday</option>
-              <option value="quickbooks">QuickBooks</option>
-              <option value="excel">Excel</option>
-            </select>
-            <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150">
-              {uploading ? 'Uploading...' : 'Upload File'}
-            </button>
-            {uploadResult && <p className={`mt-2 font-semibold ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{uploadResult}</p>}
+          <div className="mb-10 p-6 border border-[#E5E7EB] rounded-lg bg-[#F8FAFC]">
+            {/* Source System Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Source</label>
+              <select 
+                value={sourceSystem} 
+                onChange={(e) => setSourceSystem(e.target.value)} 
+                className="w-full p-2 border border-[#E5E7EB] rounded bg-white text-[#18181B]"
+              >
+                <option value="manual_upload">Manual Upload</option>
+                <option value="workday">Workday</option>
+                <option value="quickbooks">QuickBooks</option>
+                <option value="excel">Excel</option>
+              </select>
+            </div>
+            
+            {/* QuickBooks Import Section */}
+            {sourceSystem === 'quickbooks' ? (
+              <div className="mb-4">
+                <div className="flex flex-col">
+                  <div className="mb-6 bg-blue-50 p-4 rounded-md border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-2">QuickBooks Integration</h3>
+                    <p className="text-sm text-blue-600 mb-2">
+                      Import financial data directly from your QuickBooks account. You can import customers, invoices, and accounts.
+                    </p>
+                    
+                    {isQuickBooksConnected ? (
+                      <>
+                        <div className="my-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                          ✓ Your QuickBooks account is connected. You can now import your data.
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                setUploading(true);
+                                const res = await fetch('/api/quickbooks/data?type=invoices');
+                                if (!res.ok) {
+                                  const errorData = await res.json();
+                                  throw new Error(errorData.error || 'Failed to fetch invoices');
+                                }
+                                const data = await res.json();
+                                
+                                // Store the imported data in Supabase
+                                const session = (await supabase.auth.getSession()).data.session;
+                                const user_id = session?.user?.id;
+                                
+                                if (!user_id) {
+                                  setUploadResult("User not authenticated.");
+                                  return;
+                                }
+                                
+                                // Handle the actual QuickBooks API response structure
+                                const invoices = data.data && data.data.Invoice ? data.data.Invoice : [];
+                                
+                                const { error } = await supabase.from('raw_data').insert({
+                                  user_id,
+                                  raw_data: invoices,
+                                  source_system: 'quickbooks',
+                                });
+                                
+                                if (error) throw error;
+                                
+                                const invoiceCount = invoices.length;
+                                setUploadResult(`Successfully imported ${invoiceCount} invoices from QuickBooks`);
+                                fetchRawData();
+                                fetchAvailableSources();
+                              } catch (err: any) {
+                                console.error('Import error:', err);
+                                setUploadResult(`Error: ${err.message}`);
+                                
+                                // If we get an auth error, the token might have expired
+                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
+                                  setIsQuickBooksConnected(false);
+                                }
+                              } finally {
+                                setUploading(false);
+                              }
+                            }}
+                            disabled={uploading}
+                            className="bg-[#2563EB] text-white px-4 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150"
+                          >
+                            {uploading ? 'Importing...' : 'Import Invoices'}
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                setUploading(true);
+                                const res = await fetch('/api/quickbooks/data?type=customers');
+                                if (!res.ok) {
+                                  const errorData = await res.json();
+                                  throw new Error(errorData.error || 'Failed to fetch customers');
+                                }
+                                const data = await res.json();
+                                
+                                // Store the imported data in Supabase
+                                const session = (await supabase.auth.getSession()).data.session;
+                                const user_id = session?.user?.id;
+                                
+                                if (!user_id) {
+                                  setUploadResult("User not authenticated.");
+                                  return;
+                                }
+                                
+                                // Handle the actual QuickBooks API response structure
+                                const customers = data.data && data.data.Customer ? data.data.Customer : [];
+                                
+                                const { error } = await supabase.from('raw_data').insert({
+                                  user_id,
+                                  raw_data: customers,
+                                  source_system: 'quickbooks',
+                                });
+                                
+                                if (error) throw error;
+                                
+                                const customerCount = customers.length;
+                                setUploadResult(`Successfully imported ${customerCount} customers from QuickBooks`);
+                                fetchRawData();
+                                fetchAvailableSources();
+                              } catch (err: any) {
+                                console.error('Import error:', err);
+                                setUploadResult(`Error: ${err.message}`);
+                                
+                                // If we get an auth error, the token might have expired
+                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
+                                  setIsQuickBooksConnected(false);
+                                }
+                              } finally {
+                                setUploading(false);
+                              }
+                            }}
+                            disabled={uploading}
+                            className="bg-white text-[#2563EB] border border-[#2563EB] px-4 py-2 rounded font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors duration-150"
+                          >
+                            {uploading ? 'Importing...' : 'Import Customers'}
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                setUploading(true);
+                                const res = await fetch('/api/quickbooks/data?type=accounts');
+                                if (!res.ok) {
+                                  const errorData = await res.json();
+                                  throw new Error(errorData.error || 'Failed to fetch accounts');
+                                }
+                                const data = await res.json();
+                                
+                                // Store the imported data in Supabase
+                                const session = (await supabase.auth.getSession()).data.session;
+                                const user_id = session?.user?.id;
+                                
+                                if (!user_id) {
+                                  setUploadResult("User not authenticated.");
+                                  return;
+                                }
+                                
+                                // Handle the actual QuickBooks API response structure
+                                const accounts = data.data && data.data.Account ? data.data.Account : [];
+                                
+                                const { error } = await supabase.from('raw_data').insert({
+                                  user_id,
+                                  raw_data: accounts,
+                                  source_system: 'quickbooks',
+                                });
+                                
+                                if (error) throw error;
+                                
+                                const accountCount = accounts.length;
+                                setUploadResult(`Successfully imported ${accountCount} accounts from QuickBooks`);
+                                fetchRawData();
+                                fetchAvailableSources();
+                              } catch (err: any) {
+                                console.error('Import error:', err);
+                                setUploadResult(`Error: ${err.message}`);
+                                
+                                // If we get an auth error, the token might have expired
+                                if (err.message.includes('Authentication required') || err.message.includes('401')) {
+                                  setIsQuickBooksConnected(false);
+                                }
+                              } finally {
+                                setUploading(false);
+                              }
+                            }}
+                            disabled={uploading}
+                            className="bg-white text-[#2563EB] border border-[#2563EB] px-4 py-2 rounded font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors duration-150"
+                          >
+                            {uploading ? 'Importing...' : 'Import Accounts'}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="my-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
+                          You need to connect your QuickBooks account first to import data.
+                        </div>
+                        <div className="mt-4">
+                          <button 
+                            onClick={() => {
+                              window.location.href = '/api/quickbooks/auth';
+                            }}
+                            className="bg-[#2563EB] text-white px-4 py-2 rounded font-semibold hover:bg-[#1D4ED8] transition-colors duration-150"
+                          >
+                            Connect QuickBooks
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row md:items-end gap-6">
+                <label className="block w-full md:w-auto">
+                  <span className="sr-only">Choose File</span>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".csv,.xlsx,.json"
+                    className="block w-full text-sm text-[#18181B] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F3F4F6] file:text-[#18181B] hover:file:bg-[#E5E7EB] focus:file:bg-[#E5E7EB] transition-colors duration-150"
+                  />
+                </label>
+                <button onClick={handleUpload} disabled={!file || uploading} className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] disabled:opacity-50 transition-colors duration-150">
+                  {uploading ? 'Uploading...' : 'Upload File'}
+                </button>
+              </div>
+            )}
+            
+            {uploadResult && <p className={`mt-4 font-semibold ${uploadResult.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{uploadResult}</p>}
           </div>
 
           {/* Filter and Preview */}
