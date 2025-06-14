@@ -32,8 +32,15 @@ export default function ExcelImport() {
       setLoading(true);
       setError(null);
       fetch("/api/excel/files")
-        .then((res) => res.json())
-        .then((data) => setFiles(data.files || []))
+        .then(async (res) => {
+          if (res.status === 401 || res.status === 403) {
+            setError("not_authenticated");
+            setFiles([]);
+            return;
+          }
+          const data = await res.json();
+          setFiles(data.files || []);
+        })
         .catch(() => setError("Failed to fetch Excel files."))
         .finally(() => setLoading(false));
     }
@@ -125,6 +132,18 @@ export default function ExcelImport() {
               <h3 className="text-lg font-semibold mb-4">Step 1: Select an Excel File</h3>
               {loading ? (
                 <p>Loading files...</p>
+              ) : error === "not_authenticated" ? (
+                <div>
+                  <p className="mb-4 text-red-600">You must sign in with your Microsoft account to access Excel files.</p>
+                  <button
+                    className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] transition-colors duration-150"
+                    onClick={() => {
+                      window.location.href = "/api/excel/auth";
+                    }}
+                  >
+                    Sign in with Microsoft
+                  </button>
+                </div>
               ) : error ? (
                 <p className="text-red-600">{error}</p>
               ) : files.length === 0 ? (
