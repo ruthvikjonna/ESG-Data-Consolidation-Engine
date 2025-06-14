@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.10",
+    "csv-parse": "^5.6.0",
     "csv-parser": "^3.2.0",
     "formidable": "^3.5.4",
     "next": "15.3.3",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/csv-parse": "^1.1.12",
     "@types/formidable": "^3.4.5",
     "@types/node": "^20",
     "@types/react": "^19",
