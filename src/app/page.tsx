@@ -1,129 +1,81 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-export default function Home() {
-  // Auth state and input values
-  const [authMode, setAuthMode] = useState<'sign-in' | 'sign-up'>('sign-in');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authError, setAuthError] = useState<string | null>(null);
+const integrations = [
+  {
+    name: "Manual Upload",
+    description: "Upload CSV, Excel, or JSON files directly.",
+    icon: (
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-blue-600 mx-auto mb-2"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" /></svg>
+    ),
+    href: "/manual-upload",
+  },
+  {
+    name: "Excel Import",
+    description: "Import data from Excel via OneDrive Business.",
+    icon: (
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-green-600 mx-auto mb-2"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} /><path strokeWidth={2} d="M8 8l8 8M16 8l-8 8" /></svg>
+    ),
+    href: "/excel-import",
+  },
+  {
+    name: "QuickBooks",
+    description: "Connect and import from QuickBooks Online.",
+    icon: (
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-emerald-600 mx-auto mb-2"><circle cx="12" cy="12" r="10" strokeWidth={2} /><path strokeWidth={2} d="M8 12h8M12 8v8" /></svg>
+    ),
+    href: "/quickbooks",
+  },
+];
 
-  // Current logged-in user state
+export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
-
   const router = useRouter();
 
-  // Run once: check if a session already exists and redirect to /upload
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      if (data.user) {
-        router.push('/upload');
-      }
+      if (!data.user) router.push("/signin");
     });
-
-    // Set up a listener for any auth changes (login/logout)
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        router.push('/upload');
-      }
-    });
-
-    // Clean up listener when component unmounts
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
   }, [router]);
 
-  // Handle sign-in or sign-up form submission
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError(null);
-
-    try {
-      if (authMode === 'sign-in') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: authEmail,
-          password: authPassword
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email: authEmail,
-          password: authPassword
-        });
-        if (error) throw error;
-      }
-    } catch (err: any) {
-      setAuthError(err.message);
-    }
-  };
-
-  // If the user is logged in, don't render this page (redirect handled above)
-  if (user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
-      <div className="max-w-md w-full p-10 bg-white rounded-xl shadow-lg border border-[#E5E7EB]">
-        <h1 className="text-3xl font-bold text-center mb-6 text-[#18181B]">Bloom</h1>
-        <h2 className="text-lg font-semibold text-center mb-8 text-[#18181B]">
-          {authMode === 'sign-in' ? 'Welcome Back' : 'Create Account'}
-        </h2>
-
-        <form onSubmit={handleAuth} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[#18181B] mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={authEmail}
-              onChange={e => setAuthEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-[#E5E7EB] rounded-md bg-[#F8FAFC] text-[#18181B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[#18181B] mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={authPassword}
-              onChange={e => setAuthPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-[#E5E7EB] rounded-md bg-[#F8FAFC] text-[#18181B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            />
-          </div>
-
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-[#18181B]">Bloom ESG – Dashboard</h1>
           <button
-            type="submit"
-            className="w-full bg-[#2563EB] text-white py-2 px-4 rounded-md font-semibold hover:bg-[#1D4ED8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2 transition-colors duration-150"
+            onClick={() => {
+              supabase.auth.signOut();
+              router.push("/signin");
+            }}
+            className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
-            {authMode === 'sign-in' ? 'Sign In' : 'Sign Up'}
+            Sign Out
           </button>
-
-          <button
-            type="button"
-            onClick={() => setAuthMode(authMode === 'sign-in' ? 'sign-up' : 'sign-in')}
-            className="w-full text-[#2563EB] hover:text-[#1D4ED8] text-sm font-semibold mt-2"
-          >
-            {authMode === 'sign-in' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
-          </button>
-
-          {authError && (
-            <p className="text-red-600 text-sm text-center font-semibold mt-2">{authError}</p>
-          )}
-        </form>
-      </div>
-    </main>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-10 text-[#18181B] text-center">Choose a Data Source</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {integrations.map((integration) => (
+            <button
+              key={integration.name}
+              onClick={() => router.push(integration.href)}
+              className="bg-white rounded-xl shadow hover:shadow-lg transition-shadow duration-150 p-8 flex flex-col items-center border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            >
+              {integration.icon}
+              <span className="text-xl font-semibold text-[#18181B] mb-2">{integration.name}</span>
+              <span className="text-gray-500 text-center">{integration.description}</span>
+            </button>
+          ))}
+        </div>
+      </main>
+    </div>
   );
 }
