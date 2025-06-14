@@ -4,11 +4,14 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
+  const envBaseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = envBaseUrl || req.nextUrl.origin;
+  if (!baseUrl) throw new Error('Missing base URL for redirect');
   if (error) {
-    return NextResponse.redirect(`/excel-import?error=${encodeURIComponent(error)}`);
+    return NextResponse.redirect(`${baseUrl}/excel-import?error=${encodeURIComponent(error)}`);
   }
   if (!code) {
-    return NextResponse.redirect('/excel-import?error=Missing+authorization+code');
+    return NextResponse.redirect(`${baseUrl}/excel-import?error=Missing+authorization+code`);
   }
 
   const tenant = process.env.AZURE_TENANT_ID;
@@ -30,11 +33,11 @@ export async function GET(req: NextRequest) {
   });
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) {
-    return NextResponse.redirect(`/excel-import?error=Failed+to+get+access+token`);
+    return NextResponse.redirect(`${baseUrl}/excel-import?error=Failed+to+get+access+token`);
   }
 
   // Store tokens in a secure cookie (for demo; in production, use a DB)
-  const response = NextResponse.redirect('/excel-import');
+  const response = NextResponse.redirect(`${baseUrl}/excel-import`);
   response.cookies.set('ms_access_token', tokenData.access_token, { httpOnly: true, secure: true, path: '/' });
   if (tokenData.refresh_token) {
     response.cookies.set('ms_refresh_token', tokenData.refresh_token, { httpOnly: true, secure: true, path: '/' });
