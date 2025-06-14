@@ -38,7 +38,7 @@ export default function Dashboard() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      if (!data.user) router.push("/signin");
+      if (!data.user) router.push("/sign-in");
     });
   }, [router]);
 
@@ -52,7 +52,7 @@ export default function Dashboard() {
           <button
             onClick={() => {
               supabase.auth.signOut();
-              router.push("/signin");
+              router.push("/sign-in");
             }}
             className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
