@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 export default function ExcelImport() {
   const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -14,38 +13,41 @@ export default function ExcelImport() {
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [sheetData, setSheetData] = useState<any[][]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
   const router = useRouter();
 
-  // Auth check and admin check
+  // Auth check
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      // For now, treat the first user as admin (replace with real role check)
-      setIsAdmin(!!data.user);
-      if (!data.user) router.push("/");
+      if (!data.user) router.push("/sign-in");
     });
   }, [router]);
 
   // Step 1: Fetch Excel files
   useEffect(() => {
-    if (step === 1 && isAdmin) {
+    if (step === 1 && user) {
       setLoading(true);
+      setError(null);
       fetch("/api/excel/files")
         .then((res) => res.json())
         .then((data) => setFiles(data.files || []))
+        .catch(() => setError("Failed to fetch Excel files."))
         .finally(() => setLoading(false));
     }
-  }, [step, isAdmin]);
+  }, [step, user]);
 
   // Step 2: Fetch sheets in selected file
   useEffect(() => {
     if (step === 2 && selectedFile) {
       setLoading(true);
+      setError(null);
       fetch(`/api/excel/sheets?fileId=${selectedFile}`)
         .then((res) => res.json())
         .then((data) => setSheets(data.sheets || []))
+        .catch(() => setError("Failed to fetch sheets."))
         .finally(() => setLoading(false));
     }
   }, [step, selectedFile]);
@@ -54,9 +56,11 @@ export default function ExcelImport() {
   useEffect(() => {
     if (step === 3 && selectedFile && selectedSheet) {
       setLoading(true);
+      setError(null);
       fetch(`/api/excel/data?fileId=${selectedFile}&sheetName=${encodeURIComponent(selectedSheet)}`)
         .then((res) => res.json())
         .then((data) => setSheetData(data.values || []))
+        .catch(() => setError("Failed to fetch sheet data."))
         .finally(() => setLoading(false));
     }
   }, [step, selectedFile, selectedSheet]);
@@ -66,6 +70,7 @@ export default function ExcelImport() {
     if (!user || !sheetData.length) return;
     setImporting(true);
     setImportResult(null);
+    setError(null);
     try {
       const headers = sheetData[0];
       const rows = sheetData.slice(1).map((row: any[]) => {
@@ -75,24 +80,25 @@ export default function ExcelImport() {
         });
         return obj;
       });
-      const { error } = await supabase.from("raw_data").insert(
+      const { error } = await supabase.from("ingested_data").insert(
         rows.map((row: any) => ({
           user_id: user.id,
-          source_system: "excel_api",
-          raw_data: row,
+          source_system: "excel",
+          raw_payload: row,
           ingested_at: new Date().toISOString(),
         }))
       );
       if (error) throw error;
       setImportResult(`Imported ${rows.length} rows to Bloom.`);
     } catch (err: any) {
-      setImportResult(`Error: ${err.message}`);
+      setImportResult(null);
+      setError(`Error: ${err.message}`);
     } finally {
       setImporting(false);
     }
   };
 
-  if (!user || !isAdmin) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -102,7 +108,7 @@ export default function ExcelImport() {
           <button
             onClick={() => {
               supabase.auth.signOut();
-              router.push("/");
+              router.push("/sign-in");
             }}
             className="text-sm text-[#18181B] border border-[#E5E7EB] rounded px-4 py-2 transition-colors duration-150 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
@@ -119,6 +125,8 @@ export default function ExcelImport() {
               <h3 className="text-lg font-semibold mb-4">Step 1: Select an Excel File</h3>
               {loading ? (
                 <p>Loading files...</p>
+              ) : error ? (
+                <p className="text-red-600">{error}</p>
               ) : files.length === 0 ? (
                 <p>No Excel files found in your OneDrive Business.</p>
               ) : (
@@ -152,6 +160,8 @@ export default function ExcelImport() {
               </button>
               {loading ? (
                 <p>Loading sheets...</p>
+              ) : error ? (
+                <p className="text-red-600">{error}</p>
               ) : sheets.length === 0 ? (
                 <p>No sheets found in this file.</p>
               ) : (
@@ -185,6 +195,8 @@ export default function ExcelImport() {
               </button>
               {loading ? (
                 <p>Loading data...</p>
+              ) : error ? (
+                <p className="text-red-600">{error}</p>
               ) : sheetData.length === 0 ? (
                 <p>No data found in this sheet.</p>
               ) : (
