@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const dataType = url.searchParams.get('type') || 'invoices';
+    const isConnectionTest = req.headers.get('X-Connection-Test') === 'true';
     
     // Extract tokens and realmId from cookies
     const accessToken = req.cookies.get('qb_access_token')?.value;
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const isConnected = req.cookies.get('qb_connected')?.value === 'true';
     
     // Log all parameters for debugging
-    console.log('Data API call params:', { dataType, isConnected, hasAccessToken: !!accessToken, hasRealmId: !!realmId });
+    console.log('Data API call params:', { dataType, isConnected, hasAccessToken: !!accessToken, hasRealmId: !!realmId, isConnectionTest });
     
     // Validate required tokens
     if (!isConnected || !accessToken || !realmId) {
@@ -24,6 +25,11 @@ export async function GET(req: NextRequest) {
         { error: 'Authentication required. Please connect your QuickBooks account first.' },
         { status: 401 }
       );
+    }
+    
+    // If this is just a connection test, return success immediately
+    if (isConnectionTest && req.method === 'HEAD') {
+      return new NextResponse(null, { status: 200 });
     }
 
     // Determine API entity and query based on dataType

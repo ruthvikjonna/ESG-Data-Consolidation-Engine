@@ -53,8 +53,8 @@ export async function GET(req: NextRequest) {
     
     // In a real application, you would store these tokens securely in a database
     // For this demo, we'll store them in the browser's session storage
-    // Create a cookie to indicate QuickBooks is connected
-    const response = NextResponse.redirect(new URL('/', req.url));
+    // Create a cookie to indicate QuickBooks is connected and redirect to the QuickBooks page
+    const response = NextResponse.redirect(new URL('/quickbooks', req.url));
     
     // Store QuickBooks connection details in cookies
     // Note: In production, these should be stored in a database
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
         maxAge: 60 * 60 * 24 * 30, // 30 days
       });
       
-      console.log('QuickBooks tokens stored in cookies, redirecting to /');
+      console.log('QuickBooks tokens stored in cookies, redirecting to /quickbooks');
       return response;
     } else {
       // If we still don't have a realmId, we can't proceed
