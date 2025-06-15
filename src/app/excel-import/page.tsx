@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 export default function ExcelImport() {
   const [user, setUser] = useState<any>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
+  const [files, setFiles] = useState<{ id: string; name: string; path?: string }[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [sheets, setSheets] = useState<{ id: string; name: string }[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
@@ -159,7 +159,12 @@ export default function ExcelImport() {
                           setStep(2);
                         }}
                       >
-                        {file.name}
+                        <div className="font-semibold">{file.name}</div>
+                        {file.path && file.path !== file.name && (
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            Location: {file.path}
+                          </div>
+                        )}
                       </button>
                     </li>
                   ))}

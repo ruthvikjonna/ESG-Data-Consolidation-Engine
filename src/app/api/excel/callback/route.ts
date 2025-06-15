@@ -14,13 +14,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/excel-import?error=Missing+authorization+code`);
   }
 
-  const tenant = process.env.AZURE_TENANT_ID;
   const clientId = process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET;
   const redirectUri = process.env.AZURE_REDIRECT_URI;
 
-  // Exchange code for tokens
-  const tokenRes = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
+  // Exchange code for tokens using the common endpoint for both personal and business accounts
+  const tokenRes = await fetch(`https://login.microsoftonline.com/common/oauth2/v2.0/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
