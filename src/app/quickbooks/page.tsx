@@ -143,7 +143,7 @@ export default function QuickBooksPage() {
     }
   };
 
-  // Handle saving data to database
+  // ✅ FIXED: Handle saving data to database with authentication
   const handleSaveData = async () => {
     if (!data) {
       setError('No data to save');
@@ -154,6 +154,14 @@ export default function QuickBooksPage() {
     setError('');
     
     try {
+      // Get the current user session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        setError('You must be logged in to save data');
+        return;
+      }
+      
       console.log('Saving data type:', selectedDataType);
       console.log('Data structure:', Object.keys(data));
       
@@ -162,6 +170,7 @@ export default function QuickBooksPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // ✅ Add auth header
         },
         body: JSON.stringify({
           dataType: selectedDataType,
