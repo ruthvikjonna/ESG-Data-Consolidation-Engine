@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client that can access auth
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role key for server-side
+);
 
 // Handler for saving Google Sheets data to the database
 export async function POST(request: NextRequest) {
   try {
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authorization token is required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Verify the user with the token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const data = await request.json();
     const { sheetData, spreadsheetId, sheetName } = data;
     
@@ -42,10 +69,10 @@ export async function POST(request: NextRequest) {
       return rowData;
     });
 
-    // Insert data into the database - using the same table as manual-upload
+    // FIXED - Include user_id from authenticated user
     const { error } = await supabase.from("ingested_data").insert(
       dataRows.map((row: any) => ({
-        // Omitting user_id since we don't have authentication in this endpoint
+        user_id: user.id, // Add the authenticated user's ID
         source_system: "google_sheets",
         raw_payload: row,
         ingested_at: new Date().toISOString(),
