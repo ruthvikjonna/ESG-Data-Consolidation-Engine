@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Spreadsheet = {
   id: string;
@@ -12,7 +19,6 @@ export default function GoogleSheetsPage() {
   const [authUrl, setAuthUrl] = useState<string>('');
   const [accessToken, setAccessToken] = useState<string>('');
   const [spreadsheetId, setSpreadsheetId] = useState<string>('');
-  // No longer using range - will fetch entire spreadsheet
   const [data, setData] = useState<any[][]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -95,8 +101,6 @@ export default function GoogleSheetsPage() {
     }
   };
 
-  // We no longer need the handleCodeSubmit function as we're using direct OAuth flow
-
   // Fetch data from spreadsheet
   const handleGetData = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +123,56 @@ export default function GoogleSheetsPage() {
     } catch (error: any) {
       console.error('Error fetching spreadsheet data:', error);
       setError(error.message || 'Failed to fetch spreadsheet data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ FIXED: Save data with authentication
+  const handleSaveData = async () => {
+    if (data.length === 0) {
+      setError('No data to save');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Get the current user session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        setError('You must be logged in to save data');
+        return;
+      }
+      
+      // Use default sheet name since we're fetching the entire spreadsheet
+      const sheetName = "Sheet1";
+      
+      const response = await fetch('/api/google/sheets/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // ✅ Add auth header
+        },
+        body: JSON.stringify({
+          sheetData: data,
+          spreadsheetId,
+          sheetName
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setMessage(result.message || 'Data saved to database successfully!');
+      }
+    } catch (error: any) {
+      console.error('Error saving data to database:', error);
+      setError(error.message || 'Failed to save data to database');
     } finally {
       setLoading(false);
     }
@@ -326,45 +380,7 @@ export default function GoogleSheetsPage() {
                   
                   <div className="mt-6">
                     <button
-                      onClick={async () => {
-                        if (data.length === 0) {
-                          setError('No data to save');
-                          return;
-                        }
-                        
-                        setLoading(true);
-                        setError('');
-                        
-                        try {
-                          // Use default sheet name since we're fetching the entire spreadsheet
-                          const sheetName = "Sheet1";
-                          
-                          const response = await fetch('/api/google/sheets/save', {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                              sheetData: data,
-                              spreadsheetId,
-                              sheetName
-                            }),
-                          });
-                          
-                          const result = await response.json();
-                          
-                          if (result.error) {
-                            setError(result.error);
-                          } else {
-                            setMessage(result.message || 'Data saved to database successfully!');
-                          }
-                        } catch (error: any) {
-                          console.error('Error saving data to database:', error);
-                          setError(error.message || 'Failed to save data to database');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
+                      onClick={handleSaveData}
                       disabled={loading || data.length === 0}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
