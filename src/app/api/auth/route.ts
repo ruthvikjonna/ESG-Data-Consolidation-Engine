@@ -1,0 +1,116 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createOAuthClient, getAuthorizationUrl } from '@/lib/googleSheetsClient';
+import { getAuthorizationUrl as getQuickBooksAuthUrl } from '@/lib/quickbooksClient';
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const service = searchParams.get('service');
+    
+    switch (service) {
+      case 'excel':
+        return handleExcelAuth(req);
+      case 'google':
+        return handleGoogleAuth(req);
+      case 'quickbooks':
+        return handleQuickBooksAuth(req);
+      default:
+        return NextResponse.json(
+          { error: 'Service parameter required. Use: excel, google, or quickbooks' },
+          { status: 400 }
+        );
+    }
+  } catch (error: any) {
+    console.error('Auth Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Authentication failed' },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleExcelAuth(req: NextRequest) {
+  const clientId = process.env.AZURE_CLIENT_ID;
+  const redirectUri = process.env.AZURE_REDIRECT_URI;
+  
+  const scopes = [
+    'offline_access',
+    'Files.ReadWrite',
+    'User.Read',
+  ];
+
+  const authUrl =
+    `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+    new URLSearchParams({
+      client_id: clientId!,
+      response_type: 'code',
+      redirect_uri: redirectUri!,
+      response_mode: 'query',
+      scope: scopes.join(' '),
+      state: 'excel_oauth',
+    }).toString();
+
+  return NextResponse.redirect(authUrl);
+}
+
+async function handleGoogleAuth(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const requestToken = searchParams.get('requestToken') === 'true';
+  
+  if (requestToken) {
+    // This is handled by the main auth flow, but we can extend if needed
+    const oauth2Client = createOAuthClient();
+    const authUrl = getAuthorizationUrl(oauth2Client);
+    return NextResponse.json({ authUrl });
+  } else {
+    const oauth2Client = createOAuthClient();
+    const authUrl = getAuthorizationUrl(oauth2Client);
+    return NextResponse.json({ authUrl });
+  }
+}
+
+async function handleQuickBooksAuth(req: NextRequest) {
+  const authUrl = getQuickBooksAuthUrl();
+  return NextResponse.redirect(authUrl);
+}
+
+// Handle POST requests for Google auth token requests
+export async function POST(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const service = searchParams.get('service');
+    
+    if (service === 'google') {
+      const data = await request.json();
+      const { code } = data;
+      
+      if (!code) {
+        return NextResponse.json(
+          { error: 'Authorization code is required' },
+          { status: 400 }
+        );
+      }
+      
+      const oauth2Client = createOAuthClient();
+      const { getTokensFromCode, saveTokens } = await import('@/lib/googleSheetsClient');
+      const tokens = await getTokensFromCode(oauth2Client, code);
+      saveTokens(tokens);
+      
+      return NextResponse.json({ 
+        success: true,
+        tokens
+      });
+    }
+    
+    return NextResponse.json(
+      { error: 'Service not supported for POST requests' },
+      { status: 400 }
+    );
+  } catch (error: any) {
+    console.error('Error handling auth POST:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to complete authorization' },
+      { status: 500 }
+    );
+  }
+} 
