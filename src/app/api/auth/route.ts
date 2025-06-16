@@ -35,8 +35,9 @@ async function handleExcelAuth(req: NextRequest) {
   
   const scopes = [
     'offline_access',
-    'Files.ReadWrite',
+    'Files.ReadWrite.All',
     'User.Read',
+    'Sites.ReadWrite.All'
   ];
 
   const authUrl =
@@ -58,10 +59,10 @@ async function handleGoogleAuth(req: NextRequest) {
   const requestToken = searchParams.get('requestToken') === 'true';
   
   if (requestToken) {
-    // This is handled by the main auth flow, but we can extend if needed
-    const oauth2Client = createOAuthClient();
-    const authUrl = getAuthorizationUrl(oauth2Client);
-    return NextResponse.json({ authUrl });
+    // Handle token request - this would need to be implemented based on your Google auth flow
+    return NextResponse.json({ 
+      error: 'Google token request not yet implemented in consolidated route' 
+    }, { status: 501 });
   } else {
     const oauth2Client = createOAuthClient();
     const authUrl = getAuthorizationUrl(oauth2Client);
