@@ -40,7 +40,7 @@ export default function QuickBooksPage() {
         if (cookieConnected) {
           // Verify the connection by making a test API call
           try {
-            const response = await fetch('/api/quickbooks/data?type=company', { 
+            const response = await fetch('/api/data?service=quickbooks&type=company', { 
               method: 'HEAD',
               headers: { 'X-Connection-Test': 'true' } 
             });
@@ -79,7 +79,7 @@ export default function QuickBooksPage() {
     
     try {
       // Redirect to the QuickBooks auth endpoint
-      window.location.href = '/api/quickbooks/auth';
+              window.location.href = '/api/auth?service=quickbooks';
     } catch (error: any) {
       console.error('Error connecting to QuickBooks:', error);
       setError('Failed to connect to QuickBooks');
@@ -94,7 +94,7 @@ export default function QuickBooksPage() {
     setMessage('');
     
     try {
-      const response = await fetch('/api/quickbooks/disconnect');
+      const response = await fetch('/api/disconnect?service=quickbooks');
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -125,7 +125,7 @@ export default function QuickBooksPage() {
     setData(null);
     
     try {
-      const response = await fetch(`/api/quickbooks/data?type=${selectedDataType}`);
+              const response = await fetch(`/api/data?service=quickbooks&type=${selectedDataType}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -166,7 +166,7 @@ export default function QuickBooksPage() {
       console.log('Data structure:', Object.keys(data));
       
       // Use the API endpoint to save data as individual entries
-      const response = await fetch('/api/quickbooks/save', {
+              const response = await fetch('/api/save?service=quickbooks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

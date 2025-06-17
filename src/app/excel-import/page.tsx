@@ -31,7 +31,7 @@ export default function ExcelImport() {
     if (step === 1 && user) {
       setLoading(true);
       setError(null);
-      fetch("/api/excel/files")
+      fetch("/api/list?service=excel")
         .then(async (res) => {
           if (res.status === 401 || res.status === 403) {
             setError("not_authenticated");
@@ -51,7 +51,7 @@ export default function ExcelImport() {
     if (step === 2 && selectedFile) {
       setLoading(true);
       setError(null);
-      fetch(`/api/excel/sheets?fileId=${selectedFile}`)
+      fetch(`/api/list?service=excel&fileId=${selectedFile}&type=sheets`)
         .then((res) => res.json())
         .then((data) => setSheets(data.sheets || []))
         .catch(() => setError("Failed to fetch sheets."))
@@ -64,7 +64,7 @@ export default function ExcelImport() {
     if (step === 3 && selectedFile && selectedSheet) {
       setLoading(true);
       setError(null);
-      fetch(`/api/excel/data?fileId=${selectedFile}&sheetName=${encodeURIComponent(selectedSheet)}`)
+      fetch(`/api/data?service=excel&fileId=${selectedFile}&sheetName=${encodeURIComponent(selectedSheet)}`)
         .then((res) => res.json())
         .then((data) => setSheetData(data.values || []))
         .catch(() => setError("Failed to fetch sheet data."))
@@ -138,7 +138,7 @@ export default function ExcelImport() {
                   <button
                     className="bg-[#2563EB] text-white px-6 py-2 rounded font-semibold hover:bg-[#1D4ED8] transition-colors duration-150"
                     onClick={() => {
-                      window.location.href = "/api/excel/auth";
+                      window.location.href = "/api/auth?service=excel";
                     }}
                   >
                     Sign in with Microsoft

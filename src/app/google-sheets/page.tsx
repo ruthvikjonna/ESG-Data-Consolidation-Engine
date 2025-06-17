@@ -34,7 +34,7 @@ export default function GoogleSheetsPage() {
     // Get the authorization URL when the component mounts
     const getAuthUrl = async () => {
       try {
-        const response = await fetch('/api/google/auth');
+        const response = await fetch('/api/auth?service=google');
         const data = await response.json();
         setAuthUrl(data.authUrl);
       } catch (error) {
@@ -59,7 +59,7 @@ export default function GoogleSheetsPage() {
   // Fetch the access token
   const fetchToken = async () => {
     try {
-      const response = await fetch('/api/google/auth?requestToken=true');
+              const response = await fetch('/api/auth?service=google&requestToken=true');
       const data = await response.json();
       if (data.accessToken) {
         setAccessToken(data.accessToken);
@@ -78,7 +78,7 @@ export default function GoogleSheetsPage() {
     setError('');
     
     try {
-      const response = await fetch('/api/google/sheets/list', {
+              const response = await fetch('/api/list?service=google', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ export default function GoogleSheetsPage() {
     setData([]);
     
     try {
-      const response = await fetch(`/api/google/sheets?access_token=${accessToken}&spreadsheet_id=${spreadsheetId}`);
+              const response = await fetch(`/api/data?service=google&access_token=${accessToken}&spreadsheet_id=${spreadsheetId}`);
       const result = await response.json();
       
       if (result.error) {
@@ -150,7 +150,7 @@ export default function GoogleSheetsPage() {
       // Use default sheet name since we're fetching the entire spreadsheet
       const sheetName = "Sheet1";
       
-      const response = await fetch('/api/google/sheets/save', {
+              const response = await fetch('/api/save?service=google', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
