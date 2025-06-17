@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       case 'quickbooks':
         return handleQuickBooksData(req);
       case 'google':
-        return NextResponse.json({ error: 'Google Sheets data fetching not implemented in this route. Use /list for sheets.' }, { status: 400 });
+        return handleGoogleData(req);
       default:
         return NextResponse.json(
           { error: 'Service parameter required. Use: excel, quickbooks, or google' },
@@ -212,6 +212,30 @@ async function fetchCompanyInfo(accessToken: string, realmId: string) {
     console.error('Error fetching company info:', error);
     return NextResponse.json(
       { error: `Failed to fetch company info: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleGoogleData(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const accessToken = searchParams.get('access_token');
+  const spreadsheetId = searchParams.get('spreadsheet_id');
+  
+  if (!accessToken || !spreadsheetId) {
+    return NextResponse.json({ error: 'Missing access_token or spreadsheet_id' }, { status: 400 });
+  }
+  
+  try {
+    // This would typically call the Google Sheets API
+    // For now, return a placeholder response
+    return NextResponse.json({ 
+      error: 'Google Sheets data fetching not yet implemented in consolidated route' 
+    }, { status: 501 });
+  } catch (error: any) {
+    console.error('Error fetching Google Sheets data:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch Google Sheets data' },
       { status: 500 }
     );
   }
