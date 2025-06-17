@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { parse } from 'csv-parse/sync';
-import * as XLSX from 'xlsx';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,9 +19,11 @@ export async function POST(req: NextRequest) {
         return handleQuickBooksSave(req);
       case 'manual':
         return handleManualSave(req);
+      case 'excel':
+        return handleExcelSave(req);
       default:
         return NextResponse.json(
-          { error: 'Service parameter required. Use: google, quickbooks, or manual' },
+          { error: 'Service parameter required. Use: google, quickbooks, manual, or excel' },
           { status: 400 }
         );
     }
@@ -99,6 +99,75 @@ async function handleGoogleSave(req: NextRequest) {
 
   if (error) {
     console.error('Error saving data to database:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to save data to database' },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ 
+    success: true,
+    message: `Successfully saved ${dataRows.length} rows to database`,
+    insertedCount: dataRows.length
+  });
+}
+
+async function handleExcelSave(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { error: 'Authorization token is required' },
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
+    return NextResponse.json(
+      { error: 'Invalid or expired token' },
+      { status: 401 }
+    );
+  }
+
+  const data = await req.json();
+  const { sheetData, fileId, sheetName } = data;
+  
+  if (!sheetData || !Array.isArray(sheetData) || sheetData.length === 0) {
+    return NextResponse.json(
+      { error: 'Valid sheet data is required' },
+      { status: 400 }
+    );
+  }
+
+  const headers = sheetData[0].map((header: string) => header.trim().toLowerCase().replace(/\s+/g, '_'));
+  const dataRows = sheetData.slice(1).map((row: any[]) => {
+    const rowData: Record<string, any> = {};
+    
+    headers.forEach((header: string, index: number) => {
+      rowData[header] = row[index] || null;
+    });
+    
+    rowData.source = 'excel';
+    rowData.file_id = fileId;
+    rowData.sheet_name = sheetName || 'unknown';
+    rowData.imported_at = new Date().toISOString();
+    
+    return rowData;
+  });
+
+  const { error } = await supabase.from("ingested_data").insert(
+    dataRows.map((row: any) => ({
+      user_id: user.id,
+      source_system: "excel",
+      raw_payload: row,
+      ingested_at: new Date().toISOString(),
+    }))
+  );
+
+  if (error) {
+    console.error('Error saving Excel data to database:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to save data to database' },
       { status: 500 }
@@ -255,63 +324,54 @@ async function handleQuickBooksSave(req: NextRequest) {
 }
 
 async function handleManualSave(req: NextRequest) {
-  const formData = await req.formData();
-  const file = formData.get('file') as File;
-  const user_id = formData.get('user_id') as string;
-  const source_system = formData.get('source_system') as string;
-
-  if (!file || !user_id || !source_system) {
-    throw new Error("Missing required fields (file, user_id, source_system).");
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { error: 'Authorization token is required' },
+      { status: 401 }
+    );
   }
 
-  const rows = await parseFile(file);
-
-  if (!Array.isArray(rows) || rows.length === 0) {
-    throw new Error("No valid data found in file.");
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
+    return NextResponse.json(
+      { error: 'Invalid or expired token' },
+      { status: 401 }
+    );
   }
 
-  const rawRows = rows.map((row: Record<string, any>) => ({
-    user_id,
-    source_system,
-    raw_data: row,
-    ingested_at: new Date().toISOString(),
-  }));
+  const body = await req.json();
+  const { sheetData, source } = body;
 
-  const { error } = await supabaseAdmin.from('raw_data').insert(rawRows);
-  if (error) throw new Error(error.message);
+  if (!sheetData || !Array.isArray(sheetData) || sheetData.length === 0) {
+    return NextResponse.json(
+      { error: 'Valid sheet data is required' },
+      { status: 400 }
+    );
+  }
 
-  return NextResponse.json({
-    message: "Ingest complete",
-    count: rawRows.length,
-    fileType: file.name.split('.').pop()?.toLowerCase(),
+  const { error } = await supabase.from("ingested_data").insert(
+    sheetData.map((row: any) => ({
+      user_id: user.id,
+      source_system: source || "manual_upload",
+      raw_payload: row,
+      ingested_at: new Date().toISOString(),
+    }))
+  );
+
+  if (error) {
+    console.error('Error saving manual upload data to database:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to save data to database' },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ 
+    success: true,
+    message: `Successfully saved ${sheetData.length} rows to database`,
+    insertedCount: sheetData.length
   });
-}
-
-async function parseFile(file: File): Promise<any[]> {
-  const fileType = file.name.split('.').pop()?.toLowerCase();
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  switch (fileType) {
-    case 'csv':
-      return parse(buffer.toString(), {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-        relax_quotes: true,
-      });
-
-    case 'xlsx':
-    case 'xls':
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      return XLSX.utils.sheet_to_json(firstSheet);
-
-    case 'json':
-      const text = buffer.toString();
-      const json = JSON.parse(text);
-      return Array.isArray(json) ? json : json.data || [json];
-
-    default:
-      throw new Error(`Unsupported file type: ${fileType}`);
-  }
 } 

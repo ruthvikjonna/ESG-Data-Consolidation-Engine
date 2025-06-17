@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
 async function handleExcelAuth(req: NextRequest) {
   const clientId = process.env.AZURE_CLIENT_ID;
   const redirectUri = process.env.AZURE_REDIRECT_URI;
-  
   const scopes = [
     'offline_access',
     'Files.ReadWrite.All',
@@ -52,7 +51,8 @@ async function handleExcelAuth(req: NextRequest) {
       state: 'excel_oauth',
     }).toString();
 
-  return NextResponse.redirect(authUrl);
+  // Always return JSON for GET (fetch) requests
+  return NextResponse.json({ authUrl });
 }
 
 async function handleGoogleAuth(req: NextRequest) {
@@ -76,7 +76,7 @@ async function handleGoogleAuth(req: NextRequest) {
 
 async function handleQuickBooksAuth(req: NextRequest) {
   const authUrl = getQuickBooksAuthUrl();
-  return NextResponse.redirect(authUrl);
+  return NextResponse.json({ authUrl });
 }
 
 // Handle POST requests for Google auth token requests

@@ -129,6 +129,8 @@ async function handleQuickBooksData(req: NextRequest) {
     );
   }
   
+  console.log('QuickBooks raw response:', JSON.stringify(results, null, 2));
+  
   return NextResponse.json({
     data: results.QueryResponse,
     maxResults: results.QueryResponse.maxResults,

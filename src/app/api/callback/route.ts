@@ -15,13 +15,13 @@ export async function GET(req: NextRequest) {
     const baseUrl = envBaseUrl || req.nextUrl.origin;
     
     if (error) {
-      const redirectPath = getRedirectPath(state, service);
-      return NextResponse.redirect(`${baseUrl}${redirectPath}?error=${encodeURIComponent(error)}`);
+      const redirectPath = getRedirectPath(state, service, error);
+      return NextResponse.redirect(`${baseUrl}${redirectPath}`);
     }
     
     if (!code) {
-      const redirectPath = getRedirectPath(state, service);
-      return NextResponse.redirect(`${baseUrl}${redirectPath}?error=Missing+authorization+code`);
+      const redirectPath = getRedirectPath(state, service, 'Missing+authorization+code');
+      return NextResponse.redirect(`${baseUrl}${redirectPath}`);
     }
     
     // Determine service based on state or explicit service param
@@ -49,8 +49,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function getRedirectPath(state: string | null, service: string | null): string {
-  if (state === 'excel_oauth' || service === 'excel') return '/excel-import';
+function getRedirectPath(state: string | null, service: string | null, error?: string | null): string {
+  if (state === 'excel_oauth' || service === 'excel') {
+    const url = new URL('/integrations', 'http://localhost'); // base doesn't matter, will be replaced
+    url.searchParams.set('service', 'excel');
+    if (error) url.searchParams.set('error', error);
+    return url.pathname + url.search;
+  }
   if (service === 'quickbooks') return '/quickbooks';
   if (service === 'google') return '/google-sheets';
   return '/'; // default fallback
@@ -85,10 +90,15 @@ async function handleExcelCallback(req: NextRequest, code: string, baseUrl: stri
   
   if (!tokenData.access_token) {
     console.error('No access token received:', tokenData);
-    return NextResponse.redirect(`${baseUrl}/excel-import?error=Failed+to+get+access+token`);
+    const url = new URL('/integrations', baseUrl);
+    url.searchParams.set('service', 'excel');
+    url.searchParams.set('error', 'Failed to get access token');
+    return NextResponse.redirect(url.toString());
   }
 
-  const response = NextResponse.redirect(`${baseUrl}/excel-import`);
+  const url = new URL('/integrations', baseUrl);
+  url.searchParams.set('service', 'excel');
+  const response = NextResponse.redirect(url.toString());
   response.cookies.set('ms_access_token', tokenData.access_token, { httpOnly: true, secure: true, path: '/' });
   if (tokenData.refresh_token) {
     response.cookies.set('ms_refresh_token', tokenData.refresh_token, { httpOnly: true, secure: true, path: '/' });
@@ -137,7 +147,9 @@ async function handleQuickBooksCallback(req: NextRequest, code: string, realmId:
   
   console.log('Final realmId determined:', realmId);
   
-  const response = NextResponse.redirect(new URL('/quickbooks', req.url));
+  const redirectUrl = new URL('/integrations', baseUrl);
+  redirectUrl.searchParams.set('service', 'quickbooks');
+  const response = NextResponse.redirect(redirectUrl.toString());
   
   if (realmId) {
     response.cookies.set('qb_connected', 'true', { 
@@ -164,7 +176,7 @@ async function handleQuickBooksCallback(req: NextRequest, code: string, realmId:
       maxAge: 60 * 60 * 24 * 30,
     });
     
-    console.log('QuickBooks tokens stored in cookies, redirecting to /quickbooks');
+    console.log('QuickBooks tokens stored in cookies, redirecting to /integrations?service=quickbooks');
     return response;
   } else {
     console.error('No realmId found in any source');
@@ -183,7 +195,10 @@ async function handleGoogleCallback(req: NextRequest, code: string, baseUrl: str
   saveGoogleTokens(tokens);
   
   // Set the google_access_token cookie for the frontend to use
-  const response = NextResponse.redirect(new URL('/google-sheets?auth=success', req.url));
+  const url = new URL('/integrations', baseUrl);
+  url.searchParams.set('service', 'google');
+  url.searchParams.set('auth', 'success');
+  const response = NextResponse.redirect(url.toString());
   if (tokens.access_token) {
     response.cookies.set('google_access_token', tokens.access_token, { httpOnly: true, secure: true, path: '/' });
   }
