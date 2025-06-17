@@ -1,51 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createOAuthClient, listSpreadsheets } from '@/lib/googleSheetsClient';
+import * as XLSX from 'xlsx';
 
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const service = searchParams.get('service');
-    
-    switch (service) {
-      case 'excel':
-        return handleExcelList(req);
-      case 'google':
-        return NextResponse.json({ error: 'Google Sheets listing requires POST with access token' }, { status: 400 });
-      default:
-        return NextResponse.json(
-          { error: 'Service parameter required. Use: excel or google' },
-          { status: 400 }
-        );
-    }
-  } catch (error: any) {
-    console.error('List error:', error);
+  const { searchParams } = new URL(req.url);
+  const service = searchParams.get('service');
+  
+  if (!service) {
     return NextResponse.json(
-      { error: error.message || 'Failed to list resources' },
-      { status: 500 }
+      { error: 'Service parameter is required' },
+      { status: 400 }
+    );
+  }
+
+  if (service === 'excel') {
+    return handleExcelList(req);
+  } else if (service === 'google') {
+    return handleGoogleList(req);
+  } else {
+    return NextResponse.json(
+      { error: 'Invalid service. Must be "excel" or "google"' },
+      { status: 400 }
     );
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const service = searchParams.get('service');
-    
-    switch (service) {
-      case 'google':
-        return handleGoogleList(req);
-      default:
-        return NextResponse.json(
-          { error: 'Service parameter required. Use: google' },
-          { status: 400 }
-        );
-    }
-  } catch (error: any) {
-    console.error('List error:', error);
+  const { searchParams } = new URL(req.url);
+  const service = searchParams.get('service');
+  
+  if (service === 'google') {
+    return handleGoogleList(req);
+  } else {
     return NextResponse.json(
-      { error: error.message || 'Failed to list resources' },
-      { status: 500 }
+      { error: 'Invalid service for POST request' },
+      { status: 400 }
     );
   }
 }
@@ -55,38 +45,24 @@ async function handleExcelList(req: NextRequest) {
   const fileId = searchParams.get('fileId');
   const type = searchParams.get('type');
   
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get('ms_access_token')?.value;
+  const accessToken = req.cookies.get('ms_access_token')?.value;
   
   if (!accessToken) {
-    return NextResponse.json({ error: 'Not authenticated with Microsoft' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'No access token found' },
+      { status: 401 }
+    );
   }
-  
-  // If requesting sheets for a specific file
-  if (type === 'sheets' && fileId) {
+
+  if (fileId && type === 'sheets') {
     return handleExcelSheets(accessToken, fileId);
   }
-  
-  const userRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  
-  if (userRes.status === 401 || userRes.status === 403) {
-    const response = NextResponse.json({ error: 'Microsoft token invalid or expired' }, { status: 401 });
-    response.cookies.set('ms_access_token', '', { maxAge: 0, path: '/' });
-    response.cookies.set('ms_refresh_token', '', { maxAge: 0, path: '/' });
-    response.cookies.set('ms_token_expires', '', { maxAge: 0, path: '/' });
-    return response;
-  }
-  
-  if (!userRes.ok) throw new Error('Failed to fetch user information');
-  
+
   let allExcelFiles: any[] = [];
   
   // Approach 1: Search for Excel files
   try {
-    const searchQuery = "file:(*.xlsx OR *.xls)";
-    const searchRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/search(q='${searchQuery}')`, {
+    const searchRes = await fetch("https://graph.microsoft.com/v1.0/me/drive/search(q='.xlsx OR .xls')", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     
@@ -172,31 +148,64 @@ async function handleGoogleList(req: NextRequest) {
 
 async function handleExcelSheets(accessToken: string, fileId: string) {
   try {
-    const sheetsRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`, {
+    console.log(`Fetching sheets for file ID: ${fileId}`);
+    
+    // Get file info including download URL
+    const fileInfoRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     
-    if (sheetsRes.status === 401 || sheetsRes.status === 403) {
-      const response = NextResponse.json({ error: 'Microsoft token invalid or expired' }, { status: 401 });
-      response.cookies.set('ms_access_token', '', { maxAge: 0, path: '/' });
-      response.cookies.set('ms_refresh_token', '', { maxAge: 0, path: '/' });
-      response.cookies.set('ms_token_expires', '', { maxAge: 0, path: '/' });
-      return response;
+    if (!fileInfoRes.ok) {
+      console.error('File info fetch failed:', fileInfoRes.status, fileInfoRes.statusText);
+      if (fileInfoRes.status === 401 || fileInfoRes.status === 403) {
+        const response = NextResponse.json({ error: 'Microsoft token invalid or expired' }, { status: 401 });
+        response.cookies.set('ms_access_token', '', { maxAge: 0, path: '/' });
+        response.cookies.set('ms_refresh_token', '', { maxAge: 0, path: '/' });
+        response.cookies.set('ms_token_expires', '', { maxAge: 0, path: '/' });
+        return response;
+      }
+      throw new Error(`Failed to access file: ${fileInfoRes.status} ${fileInfoRes.statusText}`);
     }
     
-    if (!sheetsRes.ok) throw new Error('Failed to fetch worksheets');
+    const fileInfo = await fileInfoRes.json();
+    console.log('File found:', fileInfo.name, 'Size:', fileInfo.size);
     
-    const sheetsData = await sheetsRes.json();
-    const sheets = (sheetsData.value || []).map((sheet: any) => ({
-      id: sheet.id,
-      name: sheet.name
+    // Download the Excel file directly using the download URL
+    const downloadUrl = fileInfo['@microsoft.graph.downloadUrl'];
+    if (!downloadUrl) {
+      throw new Error('No download URL available for this file');
+    }
+    
+    console.log('Downloading Excel file for parsing...');
+    const fileRes = await fetch(downloadUrl);
+    
+    if (!fileRes.ok) {
+      throw new Error(`Failed to download file: ${fileRes.status} ${fileRes.statusText}`);
+    }
+    
+    // Convert to array buffer for XLSX parsing
+    const arrayBuffer = await fileRes.arrayBuffer();
+    
+    // Parse with XLSX library
+    console.log('Parsing Excel file with XLSX library...');
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    
+    // Extract sheet names
+    const sheets = workbook.SheetNames.map((name, index) => ({
+      id: `sheet_${index}`,
+      name: name
     }));
     
+    console.log('Successfully parsed Excel file. Found sheets:', sheets.map(s => s.name));
+    
     return NextResponse.json({ sheets });
-  } catch (error: any) {
+    
+  } catch (error) {
     console.error('Error fetching Excel sheets:', error);
+    
+    // Return error response
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch sheets' },
+      { error: `Failed to fetch Excel sheets: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
