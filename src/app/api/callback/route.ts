@@ -61,6 +61,11 @@ async function handleExcelCallback(req: NextRequest, code: string, baseUrl: stri
   const clientSecret = process.env.AZURE_CLIENT_SECRET;
   const redirectUri = process.env.AZURE_REDIRECT_URI;
 
+  console.log('Excel callback - attempting token exchange');
+  console.log('Client ID:', clientId);
+  console.log('Redirect URI:', redirectUri);
+  console.log('Code length:', code?.length);
+
   const tokenRes = await fetch(`https://login.microsoftonline.com/common/oauth2/v2.0/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -73,8 +78,13 @@ async function handleExcelCallback(req: NextRequest, code: string, baseUrl: stri
     }),
   });
   
+  console.log('Token response status:', tokenRes.status, tokenRes.statusText);
+  
   const tokenData = await tokenRes.json();
+  console.log('Token response data:', JSON.stringify(tokenData, null, 2));
+  
   if (!tokenData.access_token) {
+    console.error('No access token received:', tokenData);
     return NextResponse.redirect(`${baseUrl}/excel-import?error=Failed+to+get+access+token`);
   }
 
