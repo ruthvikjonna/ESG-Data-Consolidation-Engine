@@ -11,12 +11,13 @@ export async function GET(req: NextRequest) {
       case 'excel':
         return handleExcelAuth(req);
       case 'google':
+      case 'sheets':
         return handleGoogleAuth(req);
       case 'quickbooks':
         return handleQuickBooksAuth(req);
       default:
         return NextResponse.json(
-          { error: 'Service parameter required. Use: excel, google, or quickbooks' },
+          { error: 'Service parameter required. Use: excel, google, sheets, or quickbooks' },
           { status: 400 }
         );
     }
@@ -59,10 +60,13 @@ async function handleGoogleAuth(req: NextRequest) {
   const requestToken = searchParams.get('requestToken') === 'true';
   
   if (requestToken) {
-    // Handle token request - this would need to be implemented based on your Google auth flow
-    return NextResponse.json({ 
-      error: 'Google token request not yet implemented in consolidated route' 
-    }, { status: 501 });
+    // Try to get the access token from cookies
+    const accessToken = req.cookies.get('google_access_token')?.value;
+    if (accessToken) {
+      return NextResponse.json({ accessToken });
+    } else {
+      return NextResponse.json({ error: 'No Google access token found' }, { status: 401 });
+    }
   } else {
     const oauth2Client = createOAuthClient();
     const authUrl = getAuthorizationUrl(oauth2Client);

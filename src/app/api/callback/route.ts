@@ -182,5 +182,16 @@ async function handleGoogleCallback(req: NextRequest, code: string, baseUrl: str
   const tokens = await getTokensFromCode(oauth2Client, code);
   saveGoogleTokens(tokens);
   
-  return NextResponse.redirect(new URL('/google-sheets?auth=success', req.url));
+  // Set the google_access_token cookie for the frontend to use
+  const response = NextResponse.redirect(new URL('/google-sheets?auth=success', req.url));
+  if (tokens.access_token) {
+    response.cookies.set('google_access_token', tokens.access_token, { httpOnly: true, secure: true, path: '/' });
+  }
+  if (tokens.refresh_token) {
+    response.cookies.set('google_refresh_token', tokens.refresh_token, { httpOnly: true, secure: true, path: '/' });
+  }
+  if (tokens.expiry_date) {
+    response.cookies.set('google_token_expires', `${tokens.expiry_date}`, { httpOnly: true, secure: true, path: '/' });
+  }
+  return response;
 } 

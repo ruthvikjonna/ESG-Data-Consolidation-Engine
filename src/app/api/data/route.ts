@@ -221,17 +221,31 @@ async function handleGoogleData(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const accessToken = searchParams.get('access_token');
   const spreadsheetId = searchParams.get('spreadsheet_id');
-  
+  const range = searchParams.get('range') || 'Sheet1'; // Default to Sheet1 if not provided
+
   if (!accessToken || !spreadsheetId) {
     return NextResponse.json({ error: 'Missing access_token or spreadsheet_id' }, { status: 400 });
   }
-  
+
   try {
-    // This would typically call the Google Sheets API
-    // For now, return a placeholder response
-    return NextResponse.json({ 
-      error: 'Google Sheets data fetching not yet implemented in consolidated route' 
-    }, { status: 501 });
+    // Fetch the first 100 rows and 20 columns for preview
+    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
+
+    const res = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      return NextResponse.json({ error: `Google Sheets API error: ${errorText}` }, { status: res.status });
+    }
+
+    const data = await res.json();
+    const values = data.values || [];
+
+    return NextResponse.json({ values });
   } catch (error: any) {
     console.error('Error fetching Google Sheets data:', error);
     return NextResponse.json(
