@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       return handleExcelCallback(req, code, baseUrl);
     } else if (realmId || service === 'quickbooks') {
       return handleQuickBooksCallback(req, code, realmId, baseUrl);
-    } else if (service === 'google') {
+    } else if (service === 'google' || service === 'sheets') {
       return handleGoogleCallback(req, code, baseUrl);
     } else {
       // Try to auto-detect based on URL patterns or default to Excel
