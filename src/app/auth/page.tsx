@@ -22,14 +22,14 @@ export default function SignIn() {
           password: authPassword
         });
         if (error) throw error;
-        router.push('/');
+        router.push('/dashboard');
       } else {
         const { error } = await supabase.auth.signUp({
           email: authEmail,
           password: authPassword
         });
         if (error) throw error;
-        router.push('/');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setAuthError(err.message);

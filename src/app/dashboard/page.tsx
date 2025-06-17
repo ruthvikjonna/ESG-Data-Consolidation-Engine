@@ -11,7 +11,7 @@ const integrations = [
     icon: (
       <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-blue-600 mx-auto mb-2"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" /></svg>
     ),
-    href: "/manual-upload",
+    href: "/integrations?service=manual",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
     hoverBg: "hover:bg-blue-100",
@@ -23,7 +23,7 @@ const integrations = [
     icon: (
       <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-green-600 mx-auto mb-2"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} /><path strokeWidth={2} d="M8 8l8 8M16 8l-8 8" /></svg>
     ),
-    href: "/excel-import",
+    href: "/integrations?service=excel",
     bgColor: "bg-green-50",
     borderColor: "border-green-200",
     hoverBg: "hover:bg-green-100",
@@ -37,7 +37,7 @@ const integrations = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
-    href: "/google-sheets",
+    href: "/integrations?service=google",
     bgColor: "bg-indigo-50",
     borderColor: "border-indigo-200",
     hoverBg: "hover:bg-indigo-100",
@@ -49,7 +49,7 @@ const integrations = [
     icon: (
       <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-emerald-600 mx-auto mb-2"><circle cx="12" cy="12" r="10" strokeWidth={2} /><path strokeWidth={2} d="M8 12h8M12 8v8" /></svg>
     ),
-    href: "/quickbooks",
+    href: "/integrations?service=quickbooks",
     bgColor: "bg-emerald-50",
     borderColor: "border-emerald-200",
     hoverBg: "hover:bg-emerald-100",
@@ -64,7 +64,7 @@ export default function Dashboard() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      if (!data.user) router.push("/sign-in");
+      if (!data.user) router.push("/auth");
     });
   }, [router]);
 
@@ -78,7 +78,7 @@ export default function Dashboard() {
           <button
             onClick={() => {
               supabase.auth.signOut();
-              router.push("/sign-in");
+              router.push("/auth");
             }}
             className="text-sm text-[#18181B] border border-[#E5E7EB] rounded-md px-4 py-2 transition-all duration-200 bg-[#F3F4F6] hover:bg-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB] hover:shadow-sm"
           >
