@@ -1,4 +1,4 @@
-# Bloom Technologies - ESG Data Infrastructure Platform MVP
+# ESG Data Infrastructure Platform MVP
 
 > **A comprehensive ESG data integration platform built in 17 days** | *Pivoted after validating market demand through 24+ customer interviews*
 
