@@ -1,6 +1,6 @@
 # ESG Data Infrastructure Platform MVP
 
-> **A comprehensive ESG data integration platform built in 17 days** | *Pivoted after validating market demand through 24+ customer interviews*
+> **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after validating market demand through 24+ customer interviews*
 
 ## Project Overview
 
@@ -20,7 +20,7 @@ Bloom is a unified data infrastructure platform that solves **ESG data fragmenta
 - **24+ customer interviews** with sustainability managers, ESG consultants, and compliance officers
 - **3 MVP iterations**: No-code (Zapier + Google Sheets), V1 (hard-coded), V2 (full-stack)
 - **Key insights**: While the pain point was real, customers weren't willing to pay for the solution at scale
-- **Decision to pivot**: After 2.5 weeks of development, moved to a different sustainability-focused opportunity
+- **Decision to pivot**: After 2.5 weeks of interviews + development + reiteration, moved to a different sustainability-focused opportunity
 
 ## Technical Architecture
 
