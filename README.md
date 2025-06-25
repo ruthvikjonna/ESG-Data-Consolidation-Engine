@@ -1,6 +1,6 @@
 # ESG Data Infrastructure Platform MVP
 
-> **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after validating market demand through 24+ customer interviews*
+> **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the University of Wisconsin System, Seaman Paper, and Tosca*
 
 ## Project Overview
 
