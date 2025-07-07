@@ -1,13 +1,10 @@
 # ESG Data Infrastructure Platform MVP
-
 > **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the University of Wisconsin System, Seaman Paper, and Tosca*
 
 ## Project Overview
-
 Bloom is a unified data infrastructure platform that solves **ESG data fragmentation**, a critical pain point identified through extensive customer research. The platform enables seamless integration of ESG data from multiple sources (Excel, Google Sheets, QuickBooks, manual uploads) into a centralized, standardized format for analysis and reporting.
 
 ### The Problem We Solved
-
 **ESG Data Fragmentation**: Companies struggle with ESG data scattered across multiple systems, formats, and sources. This fragmentation leads to:
 - Inconsistent data formats and standards
 - Manual data consolidation processes
@@ -16,149 +13,91 @@ Bloom is a unified data infrastructure platform that solves **ESG data fragmenta
 - Time-consuming data validation and cleaning
 
 ### Customer Research & Validation
-
 - **24+ customer interviews** with sustainability managers, ESG consultants, and compliance officers
 - **3 MVP iterations**: No-code (Zapier + Google Sheets), V1 (hard-coded), V2 (full-stack)
 - **Key insights**: While the pain point was real, customers weren't willing to pay for the solution at scale
-- **Decision to pivot**: After 2.5 weeks of interviews + development + reiteration, moved to a different sustainability-focused opportunity
+- **Decision to pivot**: After 2.5 weeks of interviews, development, and reiteration, we moved to a different sustainability-focused opportunity ([Planetary Temperature Control Platform](https://github.com/ruthvikjonna/Planetary-Temperature-Control-Platform)!)
 
-## Technical Architecture
+## Product Highlights
+- **Multi-Source Data Ingestion** – Excel, Google Sheets, QuickBooks, and manual uploads  
+- **Authentication & Token Flows** – Secure, refreshable OAuth2 handling for all integrations  
+- **Real-Time Preview** – Live UI feedback on parsed file structures, schema mismatches, and cleaning issues  
+- **Data Validation Engine** – Type checking, formatting correction, and conversion logic  
+- **Unified API Architecture** – Six modular endpoints cover all integration scenarios  
+- **Pivot-Driven Architecture** – Rapid MVP cycles informed by 24+ live customer interviews 
 
-### Tech Stack
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes, Node.js
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Integrations**: 
-  - Microsoft Graph API (Excel/OneDrive)
-  - Google Sheets API
-  - QuickBooks API
-  - File upload processing (CSV, Excel, JSON)
+## Architecture & Stack
 
-### Key Features
+### Frontend
+- **Framework**: Next.js 15 + React 19 + TypeScript  
+- **UI**: Tailwind CSS, responsive design, loading states, modular component layout  
+- **Auth**: Supabase Auth with role-based access support  
 
-#### Unified Authentication System
-- Single sign-on across all integrations
-- Secure token management with automatic refresh
-- Service-specific authentication flows
+### Backend
+- **Framework**: Next.js API Routes (Node.js)  
+- **Data Pipeline**: Real-time parsing, validation, and persistence  
+- **Security**: OAuth2 flows with Microsoft, Google, and Intuit  
 
-#### Multi-Source Data Integration
-- **Excel/OneDrive**: Direct integration with Microsoft Graph API
-- **Google Sheets**: Real-time data fetching via Google Sheets API
-- **QuickBooks**: Financial data extraction (invoices, bills, customers, accounts)
-- **Manual Upload**: Support for CSV, Excel, and JSON files
+### Integrations
+- **Microsoft Excel (Graph API)**: Sheets, tables, and OneDrive auth  
+- **Google Sheets API**: Realtime fetch and parsing  
+- **QuickBooks API**: Company, invoice, account, and vendor data  
+- **Manual Uploads**: CSV, Excel (.xlsx), and JSON parsing  
 
-#### Consolidated API Architecture
-Six main API endpoints handle all integration scenarios:
-- `/api/auth` - OAuth flows for all services
-- `/api/callback` - OAuth callback handling
-- `/api/data` - Data fetching from connected services
-- `/api/save` - Data persistence and storage
-- `/api/list` - Resource listing (files, sheets, etc.)
-- `/api/disconnect` - Service disconnection
+### Data & Infra
+- **Database**: Supabase PostgreSQL  
+- **Validation**: File parsing, structure normalization, and transformation utils  
+- **Logging**: Robust server-side error capture and user-facing messages  
+- **CI/CD**: GitHub Actions + local `.env` templates  
 
-#### Data Processing & Validation
-- Automatic data type detection and conversion
-- CSV/Excel parsing with error handling
-- Data structure validation and cleaning
-- Real-time preview and transformation
+## Technical Implementation
 
-## Project Structure
+### Modular Integration Engine
+- **Node.js backend modules** handle authentication, data fetching, and disconnect flows  
+- **Unified service config** allows pluggable support for Excel, Google Sheets, QuickBooks, and manual uploads  
+- **OAuth flows** follow provider-specific scopes and token lifecycles  
 
-```
-src/
-├── app/
-│   ├── api/                    # Consolidated API routes
-│   │   ├── auth/              # OAuth authentication
-│   │   ├── callback/          # OAuth callbacks
-│   │   ├── data/              # Data fetching
-│   │   ├── save/              # Data persistence
-│   │   ├── list/              # Resource listing
-│   │   └── disconnect/        # Service disconnection
-│   ├── dashboard/             # Main dashboard
-│   ├── integrations/          # Integration management
-│   └── auth/                  # Authentication pages
-├── lib/                       # Service clients and utilities
-│   ├── googleSheetsClient.ts
-│   ├── quickbooksClient.ts
-│   ├── supabase.ts
-│   └── utils.ts
-└── types/                     # TypeScript definitions
-```
+### Data Normalization Pipeline
+- **Real-time parsing and structure flattening** for CSV, XLSX, JSON  
+- **Auto-detection** of data types and column inconsistencies  
+- **Schema validation logic** ensures clean, standardized tables before ingestion  
+- **Normalized output** is written to Supabase PostgreSQL for querying  
 
-## Technical Highlights
+### Live Data Preview & Validation UI
+- **Frontend renders upload previews** and warns of missing headers or format errors  
+- **Operators can review and approve** before saving  
+- **UI built** in React 19 + Tailwind with real-time file feedback  
 
-### Advanced Integration Patterns
-```typescript
-// Unified service configuration
-const SERVICE_CONFIGS: Record<Service, ServiceConfig> = {
-  excel: { name: 'Microsoft Excel', authRequired: true },
-  google: { name: 'Google Sheets', authRequired: true },
-  quickbooks: { 
-    name: 'QuickBooks', 
-    authRequired: true,
-    dataTypes: ['company', 'customers', 'invoices', 'bills', 'purchases', 'accounts']
-  },
-  manual: { name: 'Manual Upload', authRequired: false }
-};
-```
+### Service-Specific Fetch Logic
+- **Google Sheets**: Supports multi-sheet traversal, header inference, and on-demand fetch  
+- **Microsoft Excel**: Accesses OneDrive files using Microsoft Graph; supports range targeting  
+- **QuickBooks**: Extracts structured JSON from accounts, bills, customers, and invoices  
 
-### Robust Error Handling
-- Graceful degradation for API failures
-- Automatic token refresh mechanisms
-- Comprehensive logging and debugging
-- User-friendly error messages
+### Supabase Integration & Auth
+- **User sessions** managed via Supabase Auth with token-secure client-side access  
+- **Row-level access logic** designed for future multi-org support  
+- **All data writes** authenticated and scoped to user identity  
 
-### Performance Optimizations
-- Efficient data streaming for large files
-- Optimized API response caching
-- Minimal bundle size with tree shaking
-- Responsive UI with loading states
-
-## Key Learnings
-
-### Technical Insights
-- **API Design**: Consolidated endpoints reduce complexity and improve maintainability
-- **Error Handling**: Comprehensive error handling is crucial for enterprise integrations
-- **Performance**: Streaming and caching strategies essential for large datasets
-- **Security**: Proper token management and OAuth flows critical for enterprise use
-
-### Product Insights
-- **Market Validation**: Customer interviews revealed real pain points but limited willingness to pay
-- **Rapid Iteration**: Building multiple MVPs quickly helps validate assumptions
-- **Technical Debt**: Clean architecture from the start enables faster iteration
-- **User Experience**: Seamless integrations require careful attention to edge cases
+## Core API Endpoints
+Bloom exposes a unified RESTful backend that powers all ESG data ingestion, transformation, and integration workflows. The API handles OAuth authentication, data retrieval from connected services (Google Sheets, Excel, QuickBooks), real-time file parsing, schema validation, and secure persistence to Supabase. Designed for modularity and extensibility, the architecture supports both automated and manual data pipelines, enabling rapid onboarding of new ESG data sources with minimal integration overhead.
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- Supabase account
-- Microsoft Azure AD app
-- Google Cloud project
-- QuickBooks developer account
+- Supabase project with database URL and anon/public key
+- Microsoft Azure App (for Excel integration)
+- Google Cloud Project (for Google Sheets)
+- Intuit Developer App (for QuickBooks)
 
-### Installation
+### Quickstart
 ```bash
-git clone <repository>
+git clone https://github.com/<yourusername>/ESG-Data-Infrastructure-Platform.git
 cd esg-mvp
 npm install
 ```
 
-### Environment Setup
-```bash
-# Copy environment template
-cp .env.example .env.local
+### Final Thoughts
+Bloom isn’t just another ESG tool—it’s the missing infrastructure layer for fragmented sustainability data. Built in 17 days across 3 MVPs, it reflects a rapid, research-driven approach to solving real ESG reporting pain. While we ultimately pivoted after validating limited willingness to pay, the platform demonstrates how fast, clean architecture can turn complex, compliance-heavy data problems into scalable solutions.
 
-# Configure your environment variables
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
-MICROSOFT_CLIENT_ID=your_azure_app_id
-GOOGLE_CLIENT_ID=your_google_client_id
-QUICKBOOKS_CLIENT_ID=your_quickbooks_client_id
-```
-
-### Development
-```bash
-npm run dev
-```
+**"It’s Plaid for ESG data—connect, normalize, and report."**
