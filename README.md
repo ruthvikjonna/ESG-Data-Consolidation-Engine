@@ -92,7 +92,7 @@ Bloom exposes a unified RESTful backend that powers all ESG data ingestion, tran
 
 ### Quickstart
 ```bash
-git clone https://github.com/<yourusername>/ESG-Data-Infrastructure-Platform.git
+git clone https://github.com/ruthvikjonna/ESG-Data-Infrastructure-Platform.git
 cd esg-mvp
 npm install
 ```
