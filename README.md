@@ -1,4 +1,4 @@
-# ESG Data Consolidation Engine
+# ESG Data Consolidation Engine MVP
 > **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the University of Wisconsin System, Seaman Paper, and Tosca*
 
 ## Project Overview
