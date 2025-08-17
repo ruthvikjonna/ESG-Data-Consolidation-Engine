@@ -16,7 +16,7 @@ Bloom is a unified data infrastructure platform that solves **ESG data fragmenta
 - **24+ customer interviews** with sustainability managers, ESG consultants, and compliance officers
 - **3 MVP iterations**: No-code (Zapier + Google Sheets), V1 (hard-coded), V2 (full-stack)
 - **Key insights**: While the pain point was real, customers weren't willing to pay for the solution at scale
-- **Decision to pivot**: After 2.5 weeks of interviews, development, and reiteration, we moved to a different sustainability-focused opportunity ([Planetary Temperature Control Platform](https://github.com/ruthvikjonna/Planetary-Temperature-Control-Platform)!)
+- **Decision to pivot**: After 2.5 weeks of interviews, development, and reiteration, we moved to a different sustainability-focused opportunity ([Climate Intervention Coordination System](https://github.com/ruthvikjonna/Climate-Intervention-Coordination-System)!)
 
 ## Product Highlights
 - **Multi-Source Data Ingestion** – Excel, Google Sheets, QuickBooks, and manual uploads  
