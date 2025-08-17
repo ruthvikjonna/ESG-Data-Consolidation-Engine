@@ -1,5 +1,6 @@
 # ESG Data Consolidation Engine MVP
-> **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the University of Wisconsin System, Seaman Paper, and Tosca*
+> **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the [University of Wisconsin System](https://www.wisconsin.edu/), [Seaman Paper](https://www.seamanpaper.com/), and [Tosca](https://www.toscaltd.com/)*
+
 
 ## Project Overview
 Bloom is a unified data infrastructure platform that solves **ESG data fragmentation**, a critical pain point identified through extensive customer research. The platform enables seamless integration of ESG data from multiple sources (Excel, Google Sheets, QuickBooks, manual uploads) into a centralized, standardized format for analysis and reporting.
