@@ -1,4 +1,4 @@
-# ESG Data Infrastructure Platform MVP
+# ESG Data Consolidation Engine
 > **A comprehensive ESG data integration platform built over the course of 17 days** | *Pivoted after sending 624 outreach emails, conducting 24+ customer interviews, and receiving pilot interest from the University of Wisconsin System, Seaman Paper, and Tosca*
 
 ## Project Overview
@@ -92,8 +92,8 @@ Bloom exposes a unified RESTful backend that powers all ESG data ingestion, tran
 
 ### Quickstart
 ```bash
-git clone https://github.com/<yourusername>/ESG-Data-Infrastructure-Platform.git
-cd esg-mvp
+git clone https://github.com/<yourusername>/esg-data-consolidation-engine.git
+cd esg-data-consolidation-engine
 npm install
 ```
 
