@@ -25,6 +25,7 @@ Bloom is a unified data infrastructure platform that solves **ESG data fragmenta
 - **Real-Time Preview** – Live UI feedback on parsed file structures, schema mismatches, and cleaning issues  
 - **Data Validation Engine** – Type checking, formatting correction, and conversion logic  
 - **Unified API Architecture** – Six modular endpoints cover all integration scenarios  
+- **Webhook Automation** – Real-time ESG data updates from QuickBooks, Google Sheets, and Microsoft Graph  
 - **Pivot-Driven Architecture** – Rapid MVP cycles informed by 24+ live customer interviews 
 
 ## Architecture & Stack
